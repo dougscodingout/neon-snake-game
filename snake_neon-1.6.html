@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Neon Snake – Golden Mode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html,body{height:100%;margin:0;background:#161429;font-family:sans-serif;overflow:hidden;}
+    .wrap{display:grid;place-items:center;height:100%;}
+    canvas{background:#090818;border-radius:18px;box-shadow:0 0 40px #ffe60044,inset 0 0 30px #fff80011;}
+    .hud{display:flex;gap:16px;margin-bottom:12px;justify-content:center;text-shadow:0 0 8px #ffe800;}
+    .badge{background:rgba(0,0,0,.5);border:1px solid #ffe800;border-radius:10px;padding:8px 14px;box-shadow:0 0 12px #ffe80022;}
+    .note{font-size:14px;opacity:.8;color:#ff0;text-align:center;}
+    #countdown{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:72px;font-family:monospace;font-weight:bold;z-index:10;display:none;color:#ff0;text-shadow:0 0 30px #ffe;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="hud">
+      <div class="badge">Score: <span id="score">0</span></div>
+      <div class="badge">Best: <span id="best">0</span></div>
+      <div class="badge" id="msg">Press <b>Space</b> to start</div>
+    </div>
+    <canvas id="cv" width="720" height="720"></canvas>
+    <div id="countdown"></div>
+    <div class="note">[SPACE] inicia • pegue o <b>gold orb</b> para 5s de poder: som etéreo, campo sem limites, imunidade total, mundo pulsante!</div>
+  </div>
+</div>
+<script>
+(() => {
+// PARAMS
+const CELL=24, COLS=30, ROWS=30, GOLDEN_DURATION=5000;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'), bestEl=document.getElementById('best'), msg=document.getElementById('msg'), countdown=document.getElementById('countdown');
+const DIRS={w:{x:0,y:-1},a:{x:-1,y:0},s:{x:0,y:1},d:{x:1,y:0},ArrowUp:{x:0,y:-1},ArrowLeft:{x:-1,y:0},ArrowDown:{x:0,y:1},ArrowRight:{x:1,y:0}};
+let snake=[], dir={x:1,y:0}, nextDir={x:1,y:0}, apple={}, goldOrb=null, obstacles=[], score=0, best=+localStorage.snakeBest||0;
+let tick=100, timer=null, running=false;
+let invincible=false, invEnd=0, wallOpacity=1, fadeTimeout=null, shakeX=0, shakeY=0, shakeDuration=0, gridPulse=0, fieldPulse=0, gridDistort=0;
+
+// AUDIO SETUP
+let audioCtx, masterGain, goldenFilter, goldenDelay, goldenFeedback, audioReady=false;
+function setupAudio(){
+  if(audioReady)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain();masterGain.gain.value=1;
+  goldenFilter=audioCtx.createBiquadFilter();goldenFilter.type='lowpass';goldenFilter.frequency.value=20000;goldenFilter.Q.value=1.5;
+  goldenDelay=audioCtx.createDelay();goldenDelay.delayTime.value=0.3;
+  goldenFeedback=audioCtx.createGain();goldenFeedback.gain.value=0;
+  // routing: master -> filter -> destination & -> delay/feedback loop
+  masterGain.connect(goldenFilter);
+  goldenFilter.connect(audioCtx.destination);
+  goldenFilter.connect(goldenDelay);
+  goldenDelay.connect(goldenFeedback);goldenFeedback.connect(goldenDelay);
+  goldenDelay.connect(audioCtx.destination);
+  audioReady=true;
+}
+function playBeep(freq=1000,dur=150,type='square'){
+  if(!audioReady)return;
+  let osc=audioCtx.createOscillator();let g=audioCtx.createGain();
+  osc.type=type;osc.frequency.value=freq;
+  osc.connect(g);g.connect(masterGain);
+  // Golden: applies filter/delay!
+  g.gain.value=0.15;
+  osc.start();
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur/1000);
+  osc.stop(audioCtx.currentTime+dur/1000);
+}
+
+// GAME CORE
+function rnd(n){return Math.floor(Math.random()*n);}
+function same(a,b){return a&&b&&a.x===b.x&&a.y===b.y;}
+function start(){
+  clearInterval(timer); setupAudio();
+  let cx=Math.floor(COLS/2),cy=Math.floor(ROWS/2);
+  snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+  dir=nextDir={x:1,y:0};obstacles=[];placeApple();goldOrb=null;
+  score=0;tick=100;invincible=false;wallOpacity=1;
+  msg.textContent='Playing…';scoreEl.textContent=score;
+  timer=setInterval(step,tick);draw();
+}
+function placeApple(){
+  do{apple={x:rnd(COLS),y:rnd(ROWS)}}while(snake.some(p=>same(p,apple))||obstacles.some(o=>same(o,apple)));
+}
+function placeGoldOrb(){
+  do{goldOrb={x:rnd(COLS),y:rnd(ROWS)}}while(snake.some(p=>same(p,goldOrb))||same(apple,goldOrb)||obstacles.some(o=>same(o,goldOrb)));
+}
+function addObstacle(){
+  let o={x:rnd(COLS),y:rnd(ROWS)};
+  if(!snake.some(p=>same(p,o))&&!same(o,apple)&&(!goldOrb||!same(o,goldOrb))) obstacles.push(o);
+}
+
+function step(){
+  if(!opposite(nextDir,dir))dir=nextDir;
+  let head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(invincible){
+    // WRAP-AROUND mechanic
+    if(head.x<0)head.x=COLS-1;if(head.x>=COLS)head.x=0;if(head.y<0)head.y=ROWS-1;if(head.y>=ROWS)head.y=0;
+    wallOpacity+=((0.2-wallOpacity)*0.3);
+  }else{
+    // Normal COLLISION
+    if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS)return gameOver();
+    wallOpacity+=((1.0-wallOpacity)*0.3);
+  }
+  snake.unshift(head);
+
+  if(same(head,apple)){
+    score++;scoreEl.textContent=score;
+    placeApple();if(score%10===0)for(let i=0;i<3;i++)addObstacle();
+    if(Math.random()<0.3&&!goldOrb)placeGoldOrb();playBeep(600,90,'square');
+    combo++;
+  }else if(goldOrb&&same(head,goldOrb)){
+    goldOrb=null;enterGoldenMode();
+  }else snake.pop();
+
+  if(invincible){
+    if(Date.now()>invEnd)exitGoldenMode();
+    // Immunity: no self-collision, obstacles
+  }else{
+    // Self-collision
+    for(let i=1;i<snake.length;i++)if(same(head,snake[i]))return gameOver();
+    // Obstacle collision
+    if(obstacles.some(o=>same(o,head)))return gameOver();
+  }
+  draw();
+}
+
+function opposite(a,b){return a.x+b.x===0&&a.y+b.y===0;}
+function gameOver(){
+  running=false;clearInterval(timer);
+  msg.textContent='Crashed — Press Space to restart';
+  best=Math.max(best,score);bestEl.textContent=best;localStorage.snakeBest=best;
+  playBeep(120,420,'sawtooth');
+}
+
+// GOLDEN MODE LOGIC
+function enterGoldenMode(){
+  invincible=true;invEnd=Date.now()+GOLDEN_DURATION; wallOpacity=0.2;
+  // Audio effects: fade in
+  masterGain.gain.linearRampToValueAtTime(0.7,audioCtx.currentTime+0.5);
+  goldenFilter.frequency.linearRampToValueAtTime(400,audioCtx.currentTime+0.5);
+  goldenFeedback.gain.linearRampToValueAtTime(0.4,audioCtx.currentTime+0.5);
+  showCountdown(true);
+}
+function exitGoldenMode(){
+  invincible=false; wallOpacity=1;
+  // Audio effects: fade out
+  masterGain.gain.linearRampToValueAtTime(1.0,audioCtx.currentTime+0.5);
+  goldenFilter.frequency.linearRampToValueAtTime(20000,audioCtx.currentTime+0.5);
+  goldenFeedback.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.5);
+  showCountdown(false);
+}
+function showCountdown(show){countdown.style.display=show?'block':'none';}
+
+function triggerShake(px=8, ms=500){
+  shakeX=rnd(px*2)-px;shakeY=rnd(px*2)-px;
+  shakeDuration=Date.now()+ms;
+}
+function animate(){
+  gridPulse*=0.9;
+  fieldPulse*=0.92;
+  if(invincible){
+    // Golden pulse, shake, grid distortion
+    if(Date.now()<shakeDuration){shakeX*=0.85;shakeY*=0.85;}
+    fieldPulse=Math.max(fieldPulse,0.4+Math.sin(Date.now()/70)*0.5);
+    gridDistort=Math.max(gridDistort,0.25+Math.sin(Date.now()/130)*0.7);
+    const left=Math.ceil((invEnd-Date.now())/1000);
+    countdown.textContent=left;
+    countdown.style.color=left<=2?'#f00':'#ff0';
+    countdown.style.textShadow=(left<=2?'0 0 32px #f00':'0 0 32px #ffe800');
+    countdown.style.transform=`scale(${1.0+(5-left)*0.15})`;
+    countdown.style.display='block';
+  }else{
+    shakeX*=0.8;shakeY*=0.8;gridDistort*=0.9;fieldPulse*=0.95;
+    countdown.style.display='none';
+  }
+  requestAnimationFrame(animate);
+}
+animate();
+
+// DRAWING
+function draw(){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,shakeX,shakeY);
+  drawField();
+  drawGrid();
+  obstacles.forEach(o=>{ctx.fillStyle='#f0f';ctx.shadowColor='#f0f';ctx.shadowBlur=10;drawCell(o.x,o.y,6);ctx.shadowBlur=0;});
+  drawOrb(apple.x,apple.y,'#0ff');
+  if(goldOrb)drawOrb(goldOrb.x,goldOrb.y,'#ff0');
+  drawSnake();
+  drawWalls();
+  if(invincible)drawGoldenOverlay();
+  ctx.restore();
+}
+function drawField(){
+  // Pulsing field
+  let bright=invincible?(0.3+fieldPulse):0.16;
+  ctx.fillStyle=`rgba(50,25,65,${bright})`;
+  ctx.fillRect(0,0,cv.width,cv.height);
+}
+function drawGrid(){
+  ctx.strokeStyle=`rgba(255,255,0,${invincible?0.22+gridDistort:0.09})`;
+  ctx.beginPath();
+  for(let i=1;i<COLS;i++){
+    let offset=invincible?Math.sin(Date.now()/120+i)*gridDistort*8:0;
+    ctx.moveTo(i*CELL+offset,0);ctx.lineTo(i*CELL+offset,cv.height);
+  }
+  for(let j=1;j<ROWS;j++){
+    let offset=invincible?Math.sin(Date.now()/110+j)*gridDistort*8:0;
+    ctx.moveTo(0,j*CELL+offset);ctx.lineTo(cv.width,j*CELL+offset);
+  }
+  ctx.stroke();
+}
+function drawSnake(){
+  snake.forEach((p,i)=>{
+    ctx.shadowBlur=invincible?22:8;
+    ctx.shadowColor=invincible?'#ffe800':'#0ff';
+    ctx.globalAlpha=invincible&&i>0?0.7:1.0;
+    ctx.fillStyle=invincible?(i==0?'#ffe800':`rgba(255,240,0,0.7)`):`hsl(${180+i*7},100%,60%)`;
+    drawCell(p.x,p.y,7);
+    ctx.globalAlpha=1.0;
+    ctx.shadowBlur=0;
+  });
+}
+function drawOrb(x,y,color){
+  let px=x*CELL+CELL/2,py=y*CELL+CELL/2;
+  let g=ctx.createRadialGradient(px,py,4,px,py,14);
+  g.addColorStop(0,'#fff'); g.addColorStop(.3,color); g.addColorStop(1,'#0000');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,12,0,2*Math.PI);ctx.fill();
+}
+function drawCell(x,y,r){
+  let px=x*CELL,py=y*CELL;
+  ctx.beginPath();ctx.moveTo(px+r,py);ctx.arcTo(px+CELL,py,px+CELL,py+CELL,r);
+  ctx.arcTo(px+CELL,py+CELL,px,py+CELL,r);ctx.arcTo(px,py+CELL,px,py,r);
+  ctx.arcTo(px,py,px+CELL,py,r);ctx.closePath();ctx.fill();
+}
+function drawWalls(){
+  ctx.save();ctx.globalAlpha=wallOpacity;
+  ctx.strokeStyle='#ffe800';ctx.lineWidth=4;ctx.shadowColor='#ffe800';
+  ctx.shadowBlur=15*wallOpacity;ctx.strokeRect(3,3,cv.width-6,cv.height-6);
+  ctx.shadowBlur=0;ctx.restore();
+}
+function drawGoldenOverlay(){
+  let g=ctx.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,cv.width/2);
+  g.addColorStop(0,'rgba(255,255,0,0.14)');
+  g.addColorStop(0.7,'rgba(255,220,0,0.09)');
+  g.addColorStop(1,'rgba(220,220,40,0.0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
+}
+
+// EVENTS
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();if(!running){running=true;start();}else{start();}}
+  if(DIRS[e.key]){const c=DIRS[e.key];if(!opposite(c,dir))nextDir=c;}
+  // Golden: trigger extra shake on beat
+  if(invincible && e.code==='KeyB')triggerShake(8,500);
+});
+})();
+</script>
+</body>
+</html>

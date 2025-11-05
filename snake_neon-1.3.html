@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Neon Snake — Dynamic Synthwave ++</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{height:100%;margin:0;background:radial-gradient(circle at 50% 20%,#0a0022,#000 80%);
+font-family:sans-serif;color:#7ff;overflow:hidden;}
+.wrap{display:grid;place-items:center;height:100%;}
+canvas{background:radial-gradient(circle at 40% 40%,#050015,#000);
+border-radius:22px;box-shadow:0 0 30px #0ff4,inset 0 0 40px #00ffee22,0 0 10px #00ffff33;}
+.hud{display:flex;gap:16px;margin-bottom:12px;justify-content:center;text-shadow:0 0 8px #0ff8;}
+.badge{background:rgba(0,0,0,.4);border:1px solid #0ff6;border-radius:10px;
+padding:8px 14px;box-shadow:0 0 12px #0ff4,inset 0 0 6px #00fffa33;}
+.note{text-align:center;font-size:14px;opacity:.85;color:#f8f;}
+.key{display:inline-block;padding:2px 7px;margin:0 2px;border-radius:6px;background:#111;border:1px solid #0ff6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="hud">
+      <div class="badge">Score: <span id="score">0</span></div>
+      <div class="badge">Best: <span id="best">0</span></div>
+      <div class="badge" id="msg">Press <b>Space</b> to start</div>
+    </div>
+    <canvas id="cv" width="720" height="720"></canvas>
+    <div class="note">Gold orb = invincibility 5s • Music accelerates & rises with your level 🎶</div>
+  </div>
+</div>
+<script>
+(function(){
+const CELL=24,COLS=30,ROWS=30;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),msg=document.getElementById('msg');
+const DIRS={w:{x:0,y:-1},a:{x:-1,y:0},s:{x:0,y:1},d:{x:1,y:0},
+ArrowUp:{x:0,y:-1},ArrowLeft:{x:-1,y:0},ArrowDown:{x:0,y:1},ArrowRight:{x:1,y:0}};
+let snake=[],dir={x:1,y:0},nextDir={x:1,y:0},apple={},invOrb=null;
+let score=0,best=+localStorage.snakeBest||0;
+let tick=100,timer=null,running=false;
+let obstacles=[],invincible=false,invEnd=0;
+let audioCtx,bass,lfo,lfoGain,loopRunning=false,tempo=90,intensity=0.05,baseFreq=55;
+
+bestEl.textContent=best;
+
+// ===== Audio Engine =====
+function setupAudio(){
+  if(loopRunning)return;
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  bass=audioCtx.createOscillator();bass.type='sawtooth';bass.frequency.value=baseFreq;
+  const gain=audioCtx.createGain();gain.gain.value=intensity;
+  lfo=audioCtx.createOscillator();lfoGain=audioCtx.createGain();
+  lfo.frequency.value=2;lfoGain.gain.value=25;lfo.connect(lfoGain).connect(bass.frequency);
+  bass.connect(gain).connect(audioCtx.destination);
+  bass.start();lfo.start();
+  loopRunning=true;
+  scheduleBeat();
+}
+function scheduleBeat(){
+  if(!loopRunning)return;
+  const beat=60/tempo;const now=audioCtx.currentTime;
+  const kick=audioCtx.createOscillator(),kg=audioCtx.createGain();
+  kick.type='sine';kick.frequency.setValueAtTime(150,now);
+  kick.frequency.exponentialRampToValueAtTime(40,now+0.2);
+  kg.gain.setValueAtTime(0.4,now);
+  kg.gain.exponentialRampToValueAtTime(0.001,now+0.3);
+  kick.connect(kg).connect(audioCtx.destination);
+  kick.start();kick.stop(now+0.3);
+  const noiseBuf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.05,audioCtx.sampleRate);
+  const data=noiseBuf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+  const noise=audioCtx.createBufferSource();noise.buffer=noiseBuf;
+  const hp=audioCtx.createBiquadFilter();hp.type='highpass';hp.frequency.value=5000;
+  const ng=audioCtx.createGain();ng.gain.value=0.05;
+  noise.connect(hp).connect(ng).connect(audioCtx.destination);
+  noise.start(now+beat/2);noise.stop(now+beat/2+0.05);
+  setTimeout(scheduleBeat,beat*1000);
+}
+function stopAudio(){if(audioCtx){audioCtx.close();loopRunning=false;}}
+function adjustMusic(){
+  if(!audioCtx)return;
+  const level=Math.floor(score/10);
+  if(level<=0){tempo=90;intensity=0.05;baseFreq=55;}
+  else if(level===1){tempo=100;intensity=0.07;baseFreq=65;}
+  else if(level===2){tempo=110;intensity=0.08;baseFreq=73;}
+  else if(level===3){tempo=120;intensity=0.09;baseFreq=82;}
+  else{tempo=130;intensity=0.10;baseFreq=92;}
+  // smoothly glide pitch
+  bass.frequency.linearRampToValueAtTime(baseFreq,audioCtx.currentTime+1);
+}
+
+function beep(freq,dur,type='sine',vol=0.1){
+  const ctxA=new (window.AudioContext||window.webkitAudioContext)();
+  const osc=ctxA.createOscillator();const g=ctxA.createGain();
+  osc.type=type;osc.frequency.value=freq;
+  osc.connect(g);g.connect(ctxA.destination);g.gain.value=vol;
+  osc.start();g.gain.exponentialRampToValueAtTime(0.0001,ctxA.currentTime+dur/1000);
+  osc.stop(ctxA.currentTime+dur/1000);
+}
+
+// === GAME ===
+const rnd=n=>Math.floor(Math.random()*n);
+const same=(a,b)=>a&&b&&a.x===b.x&&a.y===b.y;
+
+function start(){
+  clearInterval(timer);
+  setupAudio();
+  const cx=Math.floor(COLS/2),cy=Math.floor(ROWS/2);
+  snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+  dir=nextDir={x:1,y:0};
+  obstacles=[];placeApple();invOrb=null;
+  score=0;tick=100;invincible=false;
+  msg.textContent='Playing…';scoreEl.textContent=score;
+  timer=setInterval(step,tick);draw();
+}
+
+function placeApple(){
+  do{apple={x:rnd(COLS),y:rnd(ROWS)};}
+  while(snake.some(p=>same(p,apple))||obstacles.some(o=>same(o,apple)));
+}
+function placeInvOrb(){
+  do{invOrb={x:rnd(COLS),y:rnd(ROWS)};}
+  while(snake.some(p=>same(p,invOrb))||same(apple,invOrb)||obstacles.some(o=>same(o,invOrb)));
+}
+function addObstacle(){
+  const o={x:rnd(COLS),y:rnd(ROWS)};
+  if(!snake.some(p=>same(p,o))&&!same(o,apple))obstacles.push(o);
+}
+
+function step(){
+  if(!opposite(nextDir,dir))dir=nextDir;
+  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(!invincible){
+    if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS)return gameOver();
+    if(obstacles.some(o=>same(o,head)))return gameOver();
+    if(snake.some(p=>same(p,head)))return gameOver();
+  }else{
+    if(head.x<0)head.x=COLS-1;
+    if(head.x>=COLS)head.x=0;
+    if(head.y<0)head.y=ROWS-1;
+    if(head.y>=ROWS)head.y=0;
+  }
+  snake.unshift(head);
+  if(same(head,apple)){
+    score++;scoreEl.textContent=score;adjustMusic();beep(600,90,'square',0.15);
+    placeApple();
+    if(score%10===0){if(tick>40)tick-=5;clearInterval(timer);timer=setInterval(step,tick);for(let i=0;i<3;i++)addObstacle();}
+    if(Math.random()<0.3&&!invOrb)placeInvOrb();
+  }else if(invOrb&&same(head,invOrb)){
+    invOrb=null;invincible=true;invEnd=Date.now()+5000;beep(1000,250,'triangle',0.2);
+  }else snake.pop();
+  if(invincible&&Date.now()>invEnd)invincible=false;
+  draw();
+}
+
+function opposite(a,b){return a.x+b.x===0&&a.y+b.y===0;}
+function gameOver(){
+  running=false;clearInterval(timer);
+  msg.textContent='Crashed — Press Space to restart';
+  best=Math.max(best,score);bestEl.textContent=best;localStorage.snakeBest=best;
+  beep(120,400,'sawtooth',0.25);
+  stopAudio();
+  cv.animate([{filter:'brightness(3)'},{filter:'brightness(1)'}],{duration:300});
+}
+
+function draw(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+  drawGrid();drawWalls();
+  obstacles.forEach(o=>{ctx.fillStyle='#f0f';ctx.shadowColor='#f0f';ctx.shadowBlur=10;drawCell(o.x,o.y,5);ctx.shadowBlur=0;});
+  drawOrb(apple.x,apple.y,'#0ff');
+  if(invOrb)drawOrb(invOrb.x,invOrb.y,'#ff0');
+  snake.forEach((p,i)=>{
+    const hue=(invincible?60:(180+i*6)%360);
+    ctx.fillStyle=`hsl(${hue},100%,60%)`;
+    ctx.shadowColor=`hsl(${hue},100%,60%)`;
+    ctx.shadowBlur=invincible?15:8;
+    drawCell(p.x,p.y,5);ctx.shadowBlur=0;
+  });
+}
+function drawWalls(){ctx.strokeStyle='#0ff';ctx.lineWidth=4;ctx.shadowColor='#0ff';ctx.shadowBlur=15;
+ctx.strokeRect(2,2,cv.width-4,cv.height-4);ctx.shadowBlur=0;}
+function drawCell(x,y,r){const px=x*CELL,py=y*CELL;
+ctx.beginPath();ctx.moveTo(px+r,py);ctx.arcTo(px+CELL,py,px+CELL,py+CELL,r);
+ctx.arcTo(px+CELL,py+CELL,px,py+CELL,r);ctx.arcTo(px,py+CELL,px,py,r);
+ctx.arcTo(px,py,px+CELL,py,r);ctx.closePath();ctx.fill();}
+function drawOrb(x,y,color){const px=x*CELL+CELL/2,py=y*CELL+CELL/2;
+const g=ctx.createRadialGradient(px,py,2,px,py,10);
+g.addColorStop(0,'#fff');g.addColorStop(.3,color);g.addColorStop(1,'#0000');
+ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,10,0,2*Math.PI);ctx.fill();}
+function drawGrid(){ctx.strokeStyle='rgba(0,255,255,.06)';ctx.beginPath();
+for(let i=1;i<COLS;i++){ctx.moveTo(i*CELL+.5,0);ctx.lineTo(i*CELL+.5,cv.height);}
+for(let j=1;j<ROWS;j++){ctx.moveTo(0,j*CELL+.5);ctx.lineTo(cv.width,j*CELL+.5);}ctx.stroke();}
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();if(!running)start();else start();}
+  if(DIRS[e.key]){const c=DIRS[e.key];if(!opposite(c,dir))nextDir=c;}
+});
+draw();
+})();
+</script>
+</body>
+</html>

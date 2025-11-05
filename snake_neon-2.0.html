@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>Neon Snake v1.8 — LEVA 2 (Power-ups Diversificados)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  html,body{height:100%;margin:0;background:#000;font-family:system-ui,Segoe UI,Roboto,Ubuntu,sans-serif;color:#e8ffff;overflow:hidden;}
+  .wrap{display:grid;place-items:center;height:100%;}
+  .hud{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;align-items:center;}
+  .hud-row{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;}
+  .badge{background:rgba(0,0,0,.4);border:1px solid #0ff6;border-radius:12px;padding:8px 14px;color:#cff;box-shadow:0 0 12px #0ff4,inset 0 0 6px #00fffa33;text-shadow:0 0 8px #0ff8;transition:all .3s ease;}
+  .world{border-color:#ff7bf5}
+  .tests{border-color:#7fff7f}
+  
+  /* Power-up específicos */
+  .golden-timer{border-color:#ffd700;background:rgba(255,215,0,.15);display:none;}
+  .golden-timer.active{display:inline-block;animation:goldenPulse 0.5s ease-in-out infinite alternate;}
+  
+  .speed-timer{border-color:#ff3333;background:rgba(255,51,51,.15);display:none;}
+  .speed-timer.active{display:inline-block;animation:speedPulse 0.3s ease-in-out infinite alternate;}
+  
+  .ghost-timer{border-color:#66ddff;background:rgba(102,221,255,.15);display:none;}
+  .ghost-timer.active{display:inline-block;animation:ghostPulse 0.6s ease-in-out infinite alternate;}
+  
+  .multiplier-badge{border-color:#33ff66;background:rgba(51,255,102,.15);display:none;}
+  .multiplier-badge.active{display:inline-block;animation:multiplierPulse 0.4s ease-in-out infinite;}
+  
+  @keyframes goldenPulse{to{box-shadow:0 0 20px #ffd700,inset 0 0 10px #ffd70066;}}
+  @keyframes speedPulse{to{box-shadow:0 0 20px #ff3333,inset 0 0 10px #ff333366;}}
+  @keyframes ghostPulse{to{box-shadow:0 0 20px #66ddff,inset 0 0 10px #66ddff66;}}
+  @keyframes multiplierPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  
+  .combo-display{border-color:#ff6b00;background:rgba(255,107,0,.2);display:none;font-weight:bold;}
+  .combo-display.active{display:inline-block;animation:comboBounce 0.3s ease-out;}
+  @keyframes comboBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+  
+  .powerup-count{border-color:#ffff00;background:rgba(255,255,0,.1);}
+  
+  canvas{background:radial-gradient(circle at 40% 40%,#050015,#000);border-radius:22px;box-shadow:0 0 30px #0ff6,inset 0 0 40px #00ffee22;transition:all .3s ease;}
+  
+  /* Estados visuais do canvas */
+  canvas.golden-active{animation:goldenZoom 1s ease-in-out infinite alternate;filter:blur(1px) saturate(1.6) brightness(1.2);}
+  canvas.speed-active{animation:speedShake 0.1s linear infinite;filter:saturate(1.4) brightness(1.1) hue-rotate(10deg);}
+  canvas.ghost-active{filter:opacity(0.7) blur(0.5px) brightness(1.3);}
+  
+  @keyframes goldenZoom{to{transform:scale(1.05)}}
+  @keyframes speedShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+  
+  .flash-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s;}
+  .flash-overlay.white{background:#fff;opacity:1;}
+  .flash-overlay.violet{background:radial-gradient(circle,#ff00ff,#4400ff);opacity:0.4;}
+  .flash-overlay.gold{background:radial-gradient(circle,#ffd700,#ff8c00);opacity:0.3;}
+  .flash-overlay.red{background:radial-gradient(circle,#ff0000,#ff6600);opacity:0.5;}
+  .flash-overlay.cyan{background:radial-gradient(circle,#00ffff,#0066ff);opacity:0.4;}
+  .flash-overlay.green{background:radial-gradient(circle,#00ff66,#00cc00);opacity:0.3;}
+  .flash-overlay.purple{background:radial-gradient(circle,#cc00ff,#6600cc);opacity:0.4;}
+  
+  .note{margin-top:8px;text-align:center;font-size:14px;opacity:.85;color:#f8f}
+</style>
+</head>
+<body>
+  <div class="flash-overlay" id="flashOverlay"></div>
+  
+  <div class="wrap">
+    <div>
+      <div class="hud">
+        <div class="badge">Score: <span id="score">0</span></div>
+        <div class="badge">Best: <span id="best">0</span></div>
+        <div class="badge world">World: <span id="worldLabel">1 • Cyberpunk Dusk</span></div>
+        
+        <!-- Power-up Timers -->
+        <div class="badge golden-timer" id="goldenTimer">⚡ Golden: <span id="goldenTime">0</span>s</div>
+        <div class="badge speed-timer" id="speedTimer">🔥 Speed: <span id="speedTime">0</span>s</div>
+        <div class="badge ghost-timer" id="ghostTimer">👻 Ghost: <span id="ghostTime">0</span>s</div>
+        <div class="badge multiplier-badge" id="multiplierBadge">💰 Multiplier: <span id="multiplierCount">0</span>/5</div>
+        
+        <div class="badge combo-display" id="comboDisplay">🔥 COMBO x<span id="comboValue">1</span></div>
+        <div class="badge powerup-count">💎 Next at: <span id="powerupCount">10</span></div>
+        
+        <div class="badge" id="msg">Pressione <b>Espaço</b> para iniciar</div>
+        <div class="badge tests" id="testBadge" style="display:none">Tests: running…</div>
+      </div>
+      <canvas id="cv" width="720" height="720"></canvas>
+      <div class="note">🎮 LEVA 2: 5 Power-ups • ⚡Golden 🔥Speed 👻Ghost 💰Multiplier 📉Shrink • Sistema de spawn inteligente</div>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  // ===========================
+  // CONFIG BÁSICA
+  // ===========================
+  const CELL=24, COLS=30, ROWS=30;
+  const cv=document.getElementById('cv');
+  const ctx=cv.getContext('2d');
+  const scoreEl=document.getElementById('score');
+  const bestEl=document.getElementById('best');
+  const msgEl=document.getElementById('msg');
+  const worldEl=document.getElementById('worldLabel');
+  const testBadge=document.getElementById('testBadge');
+  
+  // HUD Elements
+  const goldenTimerEl=document.getElementById('goldenTimer');
+  const goldenTimeEl=document.getElementById('goldenTime');
+  const speedTimerEl=document.getElementById('speedTimer');
+  const speedTimeEl=document.getElementById('speedTime');
+  const ghostTimerEl=document.getElementById('ghostTimer');
+  const ghostTimeEl=document.getElementById('ghostTime');
+  const multiplierBadgeEl=document.getElementById('multiplierBadge');
+  const multiplierCountEl=document.getElementById('multiplierCount');
+  const comboDisplayEl=document.getElementById('comboDisplay');
+  const comboValueEl=document.getElementById('comboValue');
+  const powerupCountEl=document.getElementById('powerupCount');
+  const flashOverlay=document.getElementById('flashOverlay');
+
+  // ===========================
+  // TIPOS DE POWER-UPS
+  // ===========================
+  const POWERUP_TYPES = {
+    GOLDEN: { color: '#ffd700', weight: 25, icon: '⚡' },
+    SPEED: { color: '#ff3333', weight: 20, icon: '🔥' },
+    GHOST: { color: '#66ddff', weight: 20, icon: '👻' },
+    MULTIPLIER: { color: '#33ff66', weight: 20, icon: '💰' },
+    SHRINK: { color: '#cc00ff', weight: 15, icon: '📉' }
+  };
+  
+  // Balanceamento dinâmico por mundo
+  function getPowerupWeights(){
+    const w = worldIndex; // 0-4
+    const lvl = currentLevel; // 1-10
+    const cycle = Math.floor((lvl - 1) / 10) + 1; // 1º, 2º, 3º ciclo...
+    
+    // Mundo 1-2: Mais Golden/Speed (iniciante)
+    if(w <= 1) return { GOLDEN: 35, SPEED: 25, GHOST: 15, MULTIPLIER: 15, SHRINK: 10 };
+    
+    // Mundo 3: Balanceado com mais Ghost
+    if(w === 2) return { GOLDEN: 20, SPEED: 20, GHOST: 30, MULTIPLIER: 20, SHRINK: 10 };
+    
+    // Mundo 4: Mais Multiplier (risco/recompensa)
+    if(w === 3) return { GOLDEN: 20, SPEED: 15, GHOST: 20, MULTIPLIER: 30, SHRINK: 15 };
+    
+    // Mundo 5 (Rainbow Chaos): Distribuição caótica
+    return { GOLDEN: 20, SPEED: 20, GHOST: 20, MULTIPLIER: 20, SHRINK: 20 };
+  }
+
+  // ===========================
+  // ESTADO DE JOGO
+  // ===========================
+  let snake=[], dir={x:1,y:0}, nextDir={x:1,y:0};
+  let apple=null, score=0, best=+localStorage.neonSnakeBest||0;
+  let tick=100, baseTick=100;
+  let logicTimer=null;
+  let restarting=false;
+
+  // Combo
+  let combo=0, lastEat=0;
+
+  // Power-ups no mapa
+  let powerUps=[];
+  let lastPowerupScore = 0;
+  const POWERUP_INTERVAL = 10;
+  let powerupsOnMap = 0;
+  let currentLevel = 1; // Nível atual (1-10, depois reinicia)
+
+  // Estados de power-ups ativos
+  let goldenActive=false, goldenEnd=0;
+  let speedActive=false, speedEnd=0;
+  let ghostActive=false, ghostEnd=0;
+  let multiplierActive=false, multiplierApplesLeft=0;
+  
+  // Partículas
+  const particles=[];
+  const MAX_PARTICLES=150;
+  
+  // Floating text
+  const floatingTexts = [];
+
+  // Mundo / Progressão audiovisual
+  const WORLDS=[
+    { name:'Cyberpunk Dusk',   bg:'#0a0022', color:'#0ff', bpm:90,  bass:55,  palette:['#0ff','#f0f','#ff0'],  chime:false, sweep:false },
+    { name:'Synthwave Sunset', bg:'#220a0a', color:'#ff1493', bpm:100, bass:65, palette:['#ff1493','#ff8800','#ffff00'], chime:false, sweep:false },
+    { name:'Neon Forest',      bg:'#0a2200', color:'#0f0', bpm:110, bass:73, palette:['#0f0','#0ff','#88ffaa'], chime:false, sweep:false },
+    { name:'Electric Storm',   bg:'#000a22', color:'#0af', bpm:120, bass:82, palette:['#0af','#80f','#fff'],    chime:true,  sweep:false },
+    { name:'Rainbow Chaos',    bg:'#2a0a2a', color:'#0ff', bpm:130, bass:92, palette:['rainbow','#fff','#0ff'], chime:true,  sweep:true  }
+  ];
+  let worldIndex=0;
+
+  let transitioning=false;
+  let transitionText='';
+  let transitionStart=0;
+  const TRANSITION_MS=2000;
+
+  let lastBeatNow=performance.now();
+  let shake=0, shakeT=0, shakeRot=0;
+  let haloIntensity=0;
+
+  // ===========================
+  // ÁUDIO
+  // ===========================
+  let audioCtx=null, baseGain=null;
+  let delayNode=null, feedbackGain=null, filterNode=null;
+  let bassOsc=null, bassGain=null, lfo=null, lfoGain=null;
+  let padGains=[], padOscs=[];
+  let arpInterval=null, chimeInterval=null, sweepInterval=null;
+  let loopRunning=false, tempo=90;
+
+  function setupAudio(){
+    if(loopRunning) return;
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    baseGain = audioCtx.createGain();
+    baseGain.gain.value = 0.10;
+    delayNode = audioCtx.createDelay(); delayNode.delayTime.value=0.25;
+    feedbackGain = audioCtx.createGain(); feedbackGain.gain.value=0.25;
+    filterNode = audioCtx.createBiquadFilter(); filterNode.type='lowpass'; filterNode.frequency.value=6000;
+    baseGain.connect(audioCtx.destination);
+    baseGain.connect(delayNode);
+    delayNode.connect(feedbackGain); feedbackGain.connect(delayNode);
+    delayNode.connect(filterNode); filterNode.connect(audioCtx.destination);
+    bassOsc = audioCtx.createOscillator(); bassOsc.type='sawtooth';
+    bassGain = audioCtx.createGain(); bassGain.gain.value=0.10;
+    bassOsc.connect(bassGain).connect(baseGain);
+    lfo = audioCtx.createOscillator(); lfoGain = audioCtx.createGain(); 
+    lfo.frequency.value=2; lfoGain.gain.value=25;
+    lfo.connect(lfoGain).connect(bassOsc.frequency);
+    bassOsc.start(); lfo.start();
+    loopRunning=true;
+    applyWorld(true);
+    scheduleBeat();
+    startArpIfNeeded();
+    startChimesIfNeeded();
+    startSweepIfNeeded();
+  }
+
+  function beep(freq,durMs,type='sine',vol=0.12){
+    if(!audioCtx) return;
+    const osc=audioCtx.createOscillator(); const g=audioCtx.createGain();
+    osc.type=type; osc.frequency.value=freq; g.gain.value=vol;
+    osc.connect(g).connect(baseGain);
+    const now=audioCtx.currentTime; osc.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, now + durMs/1000);
+    osc.stop(now + durMs/1000);
+  }
+
+  function scheduleBeat(){
+    if(!loopRunning) return;
+    const beat = 60/tempo;
+    const nowT = audioCtx.currentTime;
+    const kick = audioCtx.createOscillator(); kick.type='sine';
+    const kg = audioCtx.createGain();
+    kick.frequency.setValueAtTime(150, nowT);
+    kick.frequency.exponentialRampToValueAtTime(40, nowT+0.2);
+    kg.gain.setValueAtTime(0.4, nowT);
+    kg.gain.exponentialRampToValueAtTime(0.001, nowT+0.30);
+    kick.connect(kg).connect(baseGain);
+    kick.start(); kick.stop(nowT+0.30);
+    lastBeatNow = performance.now();
+    // Shake APENAS durante Golden Mode
+    if(goldenActive) triggerShake(8, 500, 0.02);
+    else triggerShake(2, 100, 0);
+    setTimeout(scheduleBeat, beat*1000);
+  }
+
+  function applyWorld(first=false){
+    const W = WORLDS[worldIndex];
+    document.body.style.background = `radial-gradient(circle at 50% 20%, ${W.bg}, #000)`;
+    cv.style.boxShadow = `0 0 40px ${W.color}99, inset 0 0 50px ${W.color}33`;
+    if(audioCtx && bassOsc){
+      bassOsc.frequency.linearRampToValueAtTime(W.bass, audioCtx.currentTime+1.0);
+      tempo = W.bpm;
+    }
+    stopPads(); if(worldIndex>=1) startPads(W);
+    stopArp(); if(worldIndex>=2) startArpIfNeeded();
+    stopChimes(); if(W.chime) startChimesIfNeeded();
+    stopSweep(); if(W.sweep) startSweepIfNeeded();
+    worldEl.textContent = `${worldIndex+1} • ${W.name}`;
+    if(!first) cv.animate([{filter:'brightness(2) saturate(1.6)'},{filter:'brightness(1) saturate(1)'}],{duration:600});
+  }
+
+  function startPads(W){
+    padOscs=[]; padGains=[];
+    const freqs = [W.bass*2, W.bass*3, W.bass*4];
+    freqs.forEach(f=>{
+      const o=audioCtx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const g=audioCtx.createGain(); g.gain.value=0.0;
+      o.connect(g).connect(baseGain); o.start();
+      g.gain.linearRampToValueAtTime(0.03, audioCtx.currentTime+1);
+      padOscs.push(o); padGains.push(g);
+    });
+  }
+  function stopPads(){ padOscs.forEach(o=>{try{o.stop()}catch{}}); padOscs=[]; padGains=[]; }
+
+  function startArpIfNeeded(){
+    if(arpInterval) return;
+    if(!audioCtx) return;
+    arpInterval = setInterval(()=>{
+      const W=WORLDS[worldIndex]; if(worldIndex<2) return;
+      const seq=[1,1.25,1.5,2];
+      const ratio = seq[Math.floor(Math.random()*seq.length)];
+      const o=audioCtx.createOscillator(); o.type='triangle'; o.frequency.value=W.bass*ratio*2;
+      const g=audioCtx.createGain(); g.gain.value=0.05;
+      o.connect(g).connect(baseGain);
+      const t=audioCtx.currentTime; o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.3); o.stop(t+0.3);
+    }, (60/Math.max(tempo,1))*500);
+  }
+  function stopArp(){ if(arpInterval){ clearInterval(arpInterval); arpInterval=null; } }
+
+  function startChimesIfNeeded(){
+    if(chimeInterval) return;
+    chimeInterval = setInterval(()=>{
+      if(!audioCtx || !WORLDS[worldIndex].chime) return;
+      const notes=[261.63,293.66,329.63,392.00,440.00];
+      const n=notes[Math.floor(Math.random()*notes.length)];
+      const o=audioCtx.createOscillator(); o.type='sine'; o.frequency.value=n;
+      const g=audioCtx.createGain(); g.gain.value=0.08;
+      o.connect(g).connect(baseGain);
+      const t=audioCtx.currentTime; o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, t+1.5); o.stop(t+1.5);
+    }, (60/Math.max(tempo,1))*2000);
+  }
+  function stopChimes(){ if(chimeInterval){ clearInterval(chimeInterval); chimeInterval=null; } }
+
+  function startSweepIfNeeded(){
+    if(sweepInterval) return;
+    sweepInterval = setInterval(()=>{
+      if(!audioCtx || !WORLDS[worldIndex].sweep) return;
+      const noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate*0.2, audioCtx.sampleRate);
+      const data=noiseBuf.getChannelData(0);
+      for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
+      const src=audioCtx.createBufferSource(); src.buffer=noiseBuf;
+      const bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=200;
+      const g=audioCtx.createGain(); g.gain.value=0.06;
+      src.connect(bp).connect(g).connect(baseGain);
+      const t=audioCtx.currentTime; src.start(); src.stop(t+0.4);
+      bp.frequency.linearRampToValueAtTime(2000, t+0.4);
+    }, (60/Math.max(tempo,1))*4000);
+  }
+  function stopSweep(){ if(sweepInterval){ clearInterval(sweepInterval); sweepInterval=null; } }
+
+  // ===========================
+  // POWER-UP EFFECTS
+  // ===========================
+  function activateGolden(){
+    goldenActive=true; goldenEnd = Date.now() + 5000;
+    goldenTimerEl.classList.add('active');
+    cv.classList.add('golden-active');
+    triggerFlash('white', 200);
+    setTimeout(()=>triggerFlash('violet', 600), 200);
+    if(audioCtx){
+      baseGain.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime+0.4);
+      filterNode.frequency.linearRampToValueAtTime(1500, audioCtx.currentTime+0.4);
+      feedbackGain.gain.linearRampToValueAtTime(0.6, audioCtx.currentTime+0.4);
+    }
+  }
+
+  function deactivateGolden(){
+    goldenActive=false;
+    goldenTimerEl.classList.remove('active');
+    cv.classList.remove('golden-active');
+    triggerFlash('gold', 400);
+    if(audioCtx){
+      baseGain.gain.linearRampToValueAtTime(0.10, audioCtx.currentTime+0.4);
+      filterNode.frequency.linearRampToValueAtTime(6000, audioCtx.currentTime+0.4);
+      feedbackGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime+0.4);
+    }
+  }
+
+  function activateSpeed(){
+    speedActive=true; speedEnd = Date.now() + 4000;
+    speedTimerEl.classList.add('active');
+    cv.classList.add('speed-active');
+    triggerFlash('red', 300);
+    tick = baseTick / 2; // 2x velocidade
+    clearInterval(logicTimer);
+    logicTimer = setInterval(stepLogic, tick);
+    beep(800, 150, 'sawtooth', 0.25);
+  }
+
+  function deactivateSpeed(){
+    speedActive=false;
+    speedTimerEl.classList.remove('active');
+    cv.classList.remove('speed-active');
+    tick = baseTick;
+    clearInterval(logicTimer);
+    logicTimer = setInterval(stepLogic, tick);
+  }
+
+  function activateGhost(){
+    ghostActive=true; ghostEnd = Date.now() + 6000;
+    ghostTimerEl.classList.add('active');
+    cv.classList.add('ghost-active');
+    triggerFlash('cyan', 400);
+    beep(400, 300, 'sine', 0.15);
+    setTimeout(()=>beep(350, 300, 'sine', 0.10), 100);
+  }
+
+  function deactivateGhost(){
+    ghostActive=false;
+    ghostTimerEl.classList.remove('active');
+    cv.classList.remove('ghost-active');
+  }
+
+  function activateMultiplier(){
+    multiplierActive=true; multiplierApplesLeft=5;
+    multiplierBadgeEl.classList.add('active');
+    multiplierCountEl.textContent = multiplierApplesLeft;
+    triggerFlash('green', 300);
+    beep(600, 80, 'square', 0.18);
+    setTimeout(()=>beep(800, 80, 'square', 0.18), 80);
+    setTimeout(()=>beep(1000, 100, 'square', 0.20), 160);
+  }
+
+  function deactivateMultiplier(){
+    multiplierActive=false;
+    multiplierBadgeEl.classList.remove('active');
+  }
+
+  function activateShrink(x, y){
+    triggerFlash('purple', 300);
+    beep(200, 200, 'sawtooth', 0.22);
+    spawnParticles(x, y, 30, '#cc00ff');
+    // Remove 3 segmentos
+    const toRemove = Math.min(3, snake.length - 3); // mantém no mínimo 3
+    for(let i=0; i<toRemove; i++) snake.pop();
+  }
+
+  function triggerFlash(type, durationMs){
+    flashOverlay.className = `flash-overlay ${type}`;
+    setTimeout(()=>{ flashOverlay.className = 'flash-overlay'; }, durationMs);
+  }
+
+  // ===========================
+  // UTIL
+  // ===========================
+  const rnd=n=>Math.floor(Math.random()*n);
+  const same=(a,b)=>a&&b&&a.x===b.x&&a.y===b.y;
+  const isInt=n=>Number.isInteger(n);
+  const isFiniteNum=n=>Number.isFinite(n);
+  const validCell=(x,y)=>isInt(x)&&isInt(y)&&x>=0&&x<COLS&&y>=0&&y<ROWS;
+
+  function weightedRandom(){
+    const weights = getPowerupWeights();
+    const types = Object.keys(weights);
+    const totalWeight = types.reduce((sum, type) => sum + weights[type], 0);
+    let rand = Math.random() * totalWeight;
+    for(const type of types){
+      rand -= weights[type];
+      if(rand <= 0) return type;
+    }
+    return types[0];
+  }
+
+  // ===========================
+  // INICIALIZA
+  // ===========================
+  function startGame(){
+    clearInterval(logicTimer);
+    const cx=Math.floor(COLS/2), cy=Math.floor(ROWS/2);
+    snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+    dir=nextDir={x:1,y:0};
+    score=0; combo=0; particles.length=0; floatingTexts.length=0;
+    lastPowerupScore=0;
+    currentLevel=1;
+    powerUps=[];
+    powerupsOnMap=0;
+    
+    // Gerar power-ups iniciais no mapa
+    generateInitialPowerups();
+    
+    placeApple();
+    transitioning=false; transitionText='';
+    msgEl.textContent='Jogando…';
+    scoreEl.textContent=score; bestEl.textContent=best;
+    updatePowerupCounter();
+    comboDisplayEl.classList.remove('active');
+    tick = baseTick;
+    logicTimer=setInterval(stepLogic, tick);
+    
+    // Reset all power-up states
+    if(goldenActive) deactivateGolden();
+    if(speedActive) deactivateSpeed();
+    if(ghostActive) deactivateGhost();
+    if(multiplierActive) deactivateMultiplier();
+  }
+
+  function placeApple(){
+    let tries=0;
+    do{ apple={x:rnd(COLS), y:rnd(ROWS)}; tries++; if(tries>100) break; }
+    while(snake.some(p=>same(p,apple)) || powerUps.some(p=>same(p.pos,apple)));
+    if(!validCell(apple.x, apple.y)) apple={x:0,y:0};
+  }
+
+  function spawnPowerup(){
+    const type = weightedRandom();
+    let pos; let guard=0;
+    do{ pos={x:rnd(COLS), y:rnd(ROWS)}; guard++; if(guard>200) break; }
+    while(snake.some(s=>same(s,pos)) || (apple && same(pos,apple)) || powerUps.some(p=>same(p.pos,pos)));
+    if(validCell(pos.x, pos.y)){
+      powerUps.push({ pos, type });
+      powerupsOnMap++;
+      updatePowerupCounter();
+    }
+  }
+  
+  // NOVO: Calcular nível e quantidade de power-ups
+  function updateLevel(){
+    currentLevel = Math.floor(score / POWERUP_INTERVAL) + 1;
+  }
+  
+  function getPowerupCountForLevel(){
+    const levelInCycle = ((currentLevel - 1) % 10) + 1; // 1-10
+    return 11 - levelInCycle; // 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+  }
+  
+  // NOVO: Gerar múltiplos power-ups iniciais (decrescente com nível)
+  function generateInitialPowerups(){
+    powerUps = [];
+    powerupsOnMap = 0;
+    updateLevel();
+    const count = getPowerupCountForLevel();
+    for(let i=0; i<count; i++){
+      spawnPowerup();
+    }
+  }
+  
+  function getPowerupCountForScore(sc){
+    if(sc < 20) return 5;
+    if(sc < 40) return 4;
+    if(sc < 80) return 3;
+    if(sc < 200) return 2;
+    return 1;
+  }
+
+  function updatePowerupCounter(){
+    const nextSpawn = Math.ceil(score / POWERUP_INTERVAL) * POWERUP_INTERVAL + POWERUP_INTERVAL;
+    const levelInCycle = ((currentLevel - 1) % 10) + 1;
+    const cycle = Math.floor((currentLevel - 1) / 10) + 1;
+    powerupCountEl.textContent = `${powerupsOnMap} on map • Lv${levelInCycle} (Cycle ${cycle}) • Next: ${nextSpawn}`;
+  }
+
+  function updateCombo(){
+    if(combo > 1){
+      comboDisplayEl.classList.add('active');
+      comboValueEl.textContent = combo;
+    } else {
+      comboDisplayEl.classList.remove('active');
+    }
+  }
+
+  // ===========================
+  // LÓGICA DO JOGO
+  // ===========================
+  function stepLogic(){
+    if(transitioning) return;
+    if(nextDir) dir = nextDir;
+    let head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+
+    // Wrap ou wall collision
+    if(goldenActive || ghostActive){
+      if(head.x<0) head.x=COLS-1; if(head.x>=COLS) head.x=0;
+      if(head.y<0) head.y=ROWS-1; if(head.y>=ROWS) head.y=0;
+    } else {
+      if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS){ crash(); return; }
+    }
+
+    // Auto-colisão (desligado em Golden/Ghost)
+    if(!goldenActive && !ghostActive && snake.some(p=>same(p,head))){ crash(); return; }
+
+    snake.unshift(head);
+
+    // Comer maçã
+    if(apple && same(head,apple)){
+      const now=Date.now();
+      combo = (now-lastEat<3000) ? combo+1 : 1; lastEat=now;
+      
+      let basePoints = 1;
+      const comboMult = 1 + (combo-1)*0.5;
+      const multiplierMult = multiplierActive ? 3 : 1;
+      const points = Math.round(basePoints * comboMult * multiplierMult);
+      
+      score += points;
+      scoreEl.textContent=score;
+      
+      // Floating text se multiplicador ativo
+      if(multiplierActive){
+        addFloatingText(`+${points}`, head.x, head.y, '#33ff66');
+        multiplierApplesLeft--;
+        multiplierCountEl.textContent = multiplierApplesLeft;
+        if(multiplierApplesLeft <= 0) deactivateMultiplier();
+      }
+      
+      beep(600+combo*50, 120, 'square', 0.20);
+      spawnParticles(head.x, head.y, 10, getPrimaryColor());
+      updateCombo();
+      
+      // Spawn power-up a cada 10 pontos + checar mudança de nível
+      const oldLevel = currentLevel;
+      updateLevel();
+      
+      if(Math.floor(score / POWERUP_INTERVAL) > Math.floor(lastPowerupScore / POWERUP_INTERVAL)){
+        spawnPowerup();
+        lastPowerupScore = score;
+      }
+      
+      // Regenerar ao mudar de nível (ciclo)
+      if(currentLevel !== oldLevel){
+        const levelInCycle = ((currentLevel - 1) % 10) + 1;
+        // Regeneração reforçada nos níveis 1, 11, 21, 31... (início de ciclo)
+        if(levelInCycle === 1){
+          generateInitialPowerups();
+        }
+      }
+      
+      maybeWorldTransition();
+      placeApple();
+    }
+    // Pegar power-up
+    else if(powerUps.some(p=>same(p.pos,head))){
+      const powerup = powerUps.find(p=>same(p.pos,head));
+      powerUps = powerUps.filter(p=>!same(p.pos,head));
+      powerupsOnMap--;
+      updatePowerupCounter();
+      
+      switch(powerup.type){
+        case 'GOLDEN': activateGolden(); break;
+        case 'SPEED': activateSpeed(); break;
+        case 'GHOST': activateGhost(); break;
+        case 'MULTIPLIER': activateMultiplier(); break;
+        case 'SHRINK': activateShrink(head.x, head.y); break;
+      }
+    }
+    else {
+      snake.pop();
+    }
+
+    // Checar fim dos power-ups
+    const now = Date.now();
+    if(goldenActive && now > goldenEnd) deactivateGolden();
+    if(speedActive && now > speedEnd) deactivateSpeed();
+    if(ghostActive && now > ghostEnd) deactivateGhost();
+  }
+
+  function crash(){
+    if(goldenActive || ghostActive || restarting) return;
+    restarting=true; cv.style.filter='brightness(2)';
+    beep(120, 400, 'sawtooth', 0.25);
+    best=Math.max(best,score); bestEl.textContent=best; localStorage.neonSnakeBest=best;
+    clearInterval(logicTimer);
+    combo=0; updateCombo();
+    setTimeout(()=>{ cv.style.filter='brightness(1)'; restarting=false; startGame(); }, 800);
+  }
+
+  function maybeWorldTransition(){
+    const prevWorld = worldIndex;
+    const s=score;
+    if(s>=80) worldIndex=4; else if(s>=60) worldIndex=3; else if(s>=40) worldIndex=2; else if(s>=20) worldIndex=1; else worldIndex=0;
+    if(worldIndex!==prevWorld){
+      transitioning=true; transitionStart=performance.now();
+      transitionText = `ENTERING ${WORLDS[worldIndex].name.toUpperCase()}`;
+      applyWorld();
+      // Regenerar power-ups ao trocar de mundo (quantidade ajustada)
+      generateInitialPowerups();
+      setTimeout(()=>{ transitioning=false; }, TRANSITION_MS);
+    }
+  }
+
+  // ===========================
+  // RENDER
+  // ===========================
+  function animate(){
+    requestAnimationFrame(animate);
+    try{ draw(); }catch(err){ console.error('[draw] error', err); }
+  }
+
+  function triggerShake(px, durationMs, rot){
+    shake = Math.max(shake, px);
+    shakeT = performance.now() + durationMs;
+    shakeRot = rot||0;
+  }
+
+  function draw(){
+    const W = WORLDS[worldIndex];
+
+    // Atualizar timers HUD
+    if(goldenActive){
+      const tLeft = Math.max(0, goldenEnd - Date.now());
+      goldenTimeEl.textContent = (tLeft/1000).toFixed(1);
+      haloIntensity = Math.min(1, haloIntensity + 0.05);
+    } else {
+      haloIntensity = Math.max(0, haloIntensity - 0.05);
+    }
+    
+    if(speedActive){
+      const tLeft = Math.max(0, speedEnd - Date.now());
+      speedTimeEl.textContent = (tLeft/1000).toFixed(1);
+    }
+    
+    if(ghostActive){
+      const tLeft = Math.max(0, ghostEnd - Date.now());
+      ghostTimeEl.textContent = (tLeft/1000).toFixed(1);
+    }
+
+    const now=performance.now();
+    const activeShake = Math.max(0, shakeT - now);
+    let offX=0, offY=0, rot=0;
+    if(activeShake>0){
+      const k = activeShake/500;
+      offX = (Math.random()*2-1) * shake * k;
+      offY = (Math.random()*2-1) * shake * k;
+      rot = (Math.random()*2-1) * (shakeRot||0) * k;
+    }
+
+    const sinceBeat = now - lastBeatNow;
+    const beatPhase = Math.max(0, 1 - sinceBeat/200);
+    const gridAlpha = 0.06 + beatPhase * 0.14;
+
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.translate(offX, offY);
+    if(rot) ctx.rotate(rot);
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,cv.width,cv.height);
+
+    // Grade
+    ctx.strokeStyle = hexToRgba(W.color, (goldenActive? (gridAlpha*1.6) : gridAlpha));
+    ctx.beginPath();
+    for(let i=1;i<COLS;i++){
+      const x=i*CELL + (goldenActive? Math.sin(now/100 + i)*3 : 0);
+      ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, cv.height);
+    }
+    for(let j=1;j<ROWS;j++){
+      const y=j*CELL + (goldenActive? Math.sin(now/120 + j)*3 : 0);
+      ctx.moveTo(0, y+.5); ctx.lineTo(cv.width, y+.5);
+    }
+    ctx.stroke();
+
+    // Maçã (COM PULSO/GLOW)
+    if(apple && validCell(apple.x, apple.y)){
+      const appleGlow = Math.sin(Date.now() / 200) * 0.5 + 0.5; // 0-1
+      ctx.save();
+      ctx.shadowColor = W.color;
+      ctx.shadowBlur = 15 + appleGlow * 10; // 15-25
+      ctx.globalAlpha = 0.9 + appleGlow * 0.1; // 0.9-1.0
+      safeDrawOrb(apple.x, apple.y, W.color);
+      ctx.restore();
+    }
+
+    // Power-ups
+    for(const p of powerUps){ 
+      if(validCell(p.pos.x, p.pos.y)){
+        const color = POWERUP_TYPES[p.type].color;
+        safeDrawOrb(p.pos.x, p.pos.y, color);
+      }
+    }
+
+    // Partículas
+    updateParticles();
+    
+    // Floating texts
+    updateFloatingTexts();
+
+    // Cobra
+    snake.forEach((p,i)=>{
+      const hueBase = (W.palette[0]==='rainbow') ? ((now/100 + i*6)%360) : null;
+      let fill = goldenActive ? 'hsl(50,100%,65%)' 
+               : speedActive ? '#ff6666'
+               : (hueBase!=null ? `hsl(${hueBase},100%,60%)` : W.palette[0]);
+      
+      ctx.fillStyle = fill;
+      ctx.shadowColor = goldenActive? '#ffd700' : speedActive? '#ff3333' : W.color;
+      ctx.shadowBlur = goldenActive? 20 : speedActive? 15 : 8;
+      ctx.globalAlpha = ghostActive ? 0.5 : 1.0;
+      drawCell(p.x, p.y, 5);
+      ctx.globalAlpha = 1.0;
+      ctx.shadowBlur=0;
+    });
+
+    // GLOW geral
+    const glow = 30 + (beatPhase*18) + score/8;
+    cv.style.boxShadow = `0 0 ${glow}px ${W.color}AA, inset 0 0 ${Math.max(20,glow/2)}px ${W.color}33`;
+
+    // Halo Dourado
+    if(haloIntensity > 0){
+      const cxm=cv.width/2, cym=cv.height/2; 
+      const maxR=Math.hypot(cxm,cym);
+      const freq = 2.0;
+      const s = (Math.sin(Date.now()/1000 * Math.PI*2*freq)+1)/2;
+      const alpha = haloIntensity * 0.35 * s;
+      const r=maxR*(0.7 + 0.15*s);
+      
+      if(isFiniteNum(cxm) && isFiniteNum(cym) && isFiniteNum(r)){
+        const grd=ctx.createRadialGradient(cxm,cym, Math.max(0.1, r*0.2), cxm,cym, Math.max(0.2, r));
+        grd.addColorStop(0, `rgba(255,215,0, ${alpha})`);
+        grd.addColorStop(0.5, `rgba(255,140,0, ${alpha*0.5})`);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalCompositeOperation='screen';
+        ctx.fillStyle=grd; ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.globalCompositeOperation='source-over';
+      }
+    }
+
+    // Transição de mundos
+    if(transitioning){
+      const t = (now - transitionStart);
+      const a = Math.min(1, t/200);
+      if(t<150){
+        ctx.fillStyle=`rgba(255,255,255, ${1 - t/150})`;
+        ctx.fillRect(0,0,cv.width,cv.height);
+      }
+      ctx.save();
+      ctx.fillStyle = `rgba(255,255,255, ${a})`;
+      ctx.font='bold 28px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.shadowColor=W.color; ctx.shadowBlur=18;
+      ctx.fillText(transitionText, cv.width/2, cv.height/2);
+      ctx.restore();
+    }
+  }
+
+  // ===========================
+  // PRIMITIVOS
+  // ===========================
+  function drawCell(x,y,r){
+    const px=x*CELL, py=y*CELL;
+    ctx.beginPath();
+    ctx.moveTo(px+r,py);
+    ctx.arcTo(px+CELL,py,px+CELL,py+CELL,r);
+    ctx.arcTo(px+CELL,py+CELL,px,py+CELL,r);
+    ctx.arcTo(px,py+CELL,px,py,r);
+    ctx.arcTo(px,py,px+CELL,py,r);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function safeDrawOrb(x,y,color){
+    const px = x*CELL + CELL/2;
+    const py = y*CELL + CELL/2;
+    if(!isFiniteNum(px) || !isFiniteNum(py)) return false;
+    try{
+      const r0=2, r1=10;
+      const g = ctx.createRadialGradient(px,py, r0, px,py, r1);
+      g.addColorStop(0,'#fff');
+      g.addColorStop(.3,color);
+      g.addColorStop(1,'#0000');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,10,0,Math.PI*2); ctx.fill();
+      return true;
+    }catch(_){
+      ctx.fillStyle=color; ctx.beginPath(); ctx.arc(px,py,8,0,Math.PI*2); ctx.fill();
+      return false;
+    }
+  }
+
+  function hexToRgba(hex, a){
+    if(/^#([0-9a-f]{3}){1,2}$/i.test(hex)){
+      let c=hex.slice(1); if(c.length===3) c=c.split('').map(x=>x+x).join('');
+      const n=parseInt(c,16); const r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    return hex;
+  }
+
+  function getPrimaryColor(){
+    const W=WORLDS[worldIndex];
+    return (W.palette[0]==='rainbow') ? `hsl(${(Date.now()/100)%360},100%,60%)` : W.palette[0];
+  }
+
+  // ===========================
+  // PARTÍCULAS
+  // ===========================
+  class Particle{
+    constructor(x,y,color){
+      this.x=x*CELL+CELL/2; this.y=y*CELL+CELL/2;
+      this.vx=(Math.random()*16-8); this.vy=(Math.random()*-10-2);
+      this.life=1; this.color=color;
+    }
+    step(){ this.x+=this.vx; this.y+=this.vy; this.vy+=0.3; this.life-=0.03; }
+    draw(){ 
+      ctx.globalAlpha=Math.max(0,this.life); 
+      ctx.fillStyle=this.color; 
+      ctx.fillRect(this.x,this.y,3,3); 
+      ctx.globalAlpha=1; 
+    }
+  }
+  
+  function spawnParticles(x,y,count,color){
+    for(let i=0;i<count;i++){ 
+      if(particles.length<MAX_PARTICLES) particles.push(new Particle(x,y,color)); 
+    }
+  }
+  
+  function updateParticles(){
+    for(let i=particles.length-1;i>=0;i--){ 
+      const p=particles[i]; p.step(); p.draw(); 
+      if(p.life<=0) particles.splice(i,1); 
+    }
+  }
+
+  // ===========================
+  // FLOATING TEXT
+  // ===========================
+  class FloatingText{
+    constructor(text,x,y,color){
+      this.text=text;
+      this.x=x*CELL+CELL/2; this.y=y*CELL+CELL/2;
+      this.vy=-1.5; this.life=1; this.color=color;
+    }
+    step(){ this.y+=this.vy; this.life-=0.015; }
+    draw(){
+      ctx.save();
+      ctx.globalAlpha=Math.max(0,this.life);
+      ctx.fillStyle=this.color;
+      ctx.font='bold 16px monospace';
+      ctx.textAlign='center';
+      ctx.shadowColor=this.color; ctx.shadowBlur=8;
+      ctx.fillText(this.text, this.x, this.y);
+      ctx.restore();
+    }
+  }
+  
+  function addFloatingText(text,x,y,color){
+    floatingTexts.push(new FloatingText(text,x,y,color));
+  }
+  
+  function updateFloatingTexts(){
+    for(let i=floatingTexts.length-1;i>=0;i--){
+      const t=floatingTexts[i]; t.step(); t.draw();
+      if(t.life<=0) floatingTexts.splice(i,1);
+    }
+  }
+
+  // ===========================
+  // CONTROLES
+  // ===========================
+  window.addEventListener('keydown',e=>{
+    if(e.code==='Space'){ 
+      if(!loopRunning) setupAudio(); 
+      if(!logicTimer) startGame(); 
+    }
+    const dirs={
+      w:{x:0,y:-1}, a:{x:-1,y:0}, s:{x:0,y:1}, d:{x:1,y:0},
+      ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, 
+      ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0}
+    };
+    if(dirs[e.key]) nextDir = dirs[e.key];
+  });
+
+  // ===========================
+  // TESTES
+  // ===========================
+  (function runTests(){
+    const results=[];
+    function t(name, fn){
+      try{ fn(); results.push({name, ok:true}); }
+      catch(err){ console.error('TEST FAIL:', name, err); results.push({name, ok:false, err}); }
+    }
+
+    t('drawOrb NaN safety', ()=>{
+      const ok = safeDrawOrb(NaN, NaN, '#0ff');
+      if(ok!==false) throw new Error('should return false for invalid coords');
+    });
+
+    t('drawOrb valid(0,0)', ()=>{
+      const ok = safeDrawOrb(0, 0, '#0ff');
+      if(ok!==true) throw new Error('expected true for valid coords');
+    });
+
+    t('placeApple validity', ()=>{
+      placeApple();
+      if(!apple || !validCell(apple.x, apple.y)) throw new Error('apple invalid');
+    });
+
+    t('powerup weighted random', ()=>{
+      const type = weightedRandom();
+      if(!POWERUP_TYPES[type]) throw new Error('invalid powerup type');
+    });
+
+    const pass = results.every(r=>r.ok);
+    if(pass){ 
+      testBadge.style.display='inline-block'; 
+      testBadge.textContent='Tests: PASS ('+results.length+')'; 
+    } else{ 
+      testBadge.style.display='inline-block'; 
+      testBadge.style.borderColor='#ff7b7b'; 
+      testBadge.textContent='Tests: FAIL ('+results.filter(r=>!r.ok).length+'/'+results.length+')'; 
+    }
+  })();
+
+  // Kickstart
+  requestAnimationFrame(function loop(){ 
+    try{ draw(); } catch(e){ console.error(e); } 
+    requestAnimationFrame(loop); 
+  });
+})();
+</script>
+</body>
+</html>

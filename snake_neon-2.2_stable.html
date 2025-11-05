@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>🕹️ NEON SNAKE ARCADE 🕹️</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+<style>
+  * {box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:#000;font-family:'Courier New',monospace;color:#0ff;overflow:hidden;}
+  
+  /* ARCADE CABINET */
+  .arcade{
+    display:grid;
+    grid-template-columns:80px 1fr 200px;
+    grid-template-rows:600px auto;
+    gap:10px;
+    height:100vh;
+    padding:15px;
+    background:radial-gradient(circle at 50% 50%, #0a0022, #000);
+  }
+  
+  /* VISUALIZER ESQUERDA - MESMA ALTURA DO CANVAS */
+  .visualizer{
+    grid-row:1;
+    grid-column:1;
+    display:flex;
+    flex-direction:column-reverse;
+    justify-content:flex-start;
+    gap:4px;
+    padding:10px;
+    background:rgba(0,20,40,.3);
+    border:2px solid #0ff;
+    border-radius:10px;
+    box-shadow:0 0 20px #0ff6, inset 0 0 20px #0ff2;
+    height:600px;
+  }
+  .vis-bar{
+    height:8px;
+    background:linear-gradient(90deg, #0ff, #f0f);
+    border-radius:2px;
+    transition:width .1s ease;
+    box-shadow:0 0 8px #0ff;
+  }
+  .vis-bar.golden{background:linear-gradient(90deg, #ffd700, #ff8c00);}
+  
+  /* GAME AREA */
+  .game-area{
+    grid-row:1;
+    grid-column:2;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    height:600px;
+  }
+  
+  canvas{
+    background:radial-gradient(circle at 40% 40%,#050015,#000);
+    border:4px solid #0ff;
+    border-radius:15px;
+    box-shadow:0 0 30px #0ff8, inset 0 0 40px #0ff2;
+    max-width:100%;
+    height:auto;
+  }
+  
+  canvas.golden-active{
+    animation:goldenZoom 1s ease-in-out infinite alternate;
+    filter:blur(1px) saturate(1.6) brightness(1.2);
+  }
+  @keyframes goldenZoom{to{transform:scale(1.05)}}
+  
+  /* HUD DIREITA - MESMA ALTURA DO CANVAS */
+  .hud{
+    grid-row:1;
+    grid-column:3;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding:15px;
+    background:rgba(0,20,40,.3);
+    border:2px solid #ff00ff;
+    border-radius:10px;
+    box-shadow:0 0 20px #ff00ff66, inset 0 0 20px #ff00ff22;
+    overflow-y:auto;
+    height:600px;
+  }
+  .hud::-webkit-scrollbar{width:6px;}
+  .hud::-webkit-scrollbar-track{background:rgba(255,0,255,.1);}
+  .hud::-webkit-scrollbar-thumb{background:#ff00ff;border-radius:3px;}
+  
+  .badge{
+    background:rgba(0,0,0,.5);
+    border:1px solid #0ff;
+    border-radius:8px;
+    padding:8px;
+    color:#0ff;
+    font-size:12px;
+    text-align:center;
+    box-shadow:0 0 10px #0ff4;
+    transition:all .3s ease;
+  }
+  .badge.active{
+    animation:badgePulse 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes badgePulse{to{box-shadow:0 0 20px #0ff;border-color:#fff;}}
+  
+  .badge.golden{border-color:#ffd700;color:#ffd700;}
+  .badge.speed{border-color:#ff3333;color:#ff3333;}
+  .badge.ghost{border-color:#66ddff;color:#66ddff;}
+  .badge.multiplier{border-color:#33ff66;color:#33ff66;}
+  .badge.world{border-color:#ff00ff;color:#ff00ff;font-weight:bold;}
+  
+  /* CONTROLES EMBAIXO */
+  .controls{
+    grid-row:2;
+    grid-column:1/4;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:20px;
+    padding:15px;
+    background:rgba(20,0,40,.4);
+    border:3px solid #ff00ff;
+    border-radius:15px;
+    box-shadow:0 0 25px #ff00ff66, inset 0 0 25px #ff00ff11;
+  }
+  
+  .dpad{
+    display:grid;
+    grid-template-columns:repeat(3,50px);
+    grid-template-rows:repeat(3,50px);
+    gap:5px;
+  }
+  .dpad-btn{
+    background:linear-gradient(135deg, rgba(0,255,255,.3), rgba(255,0,255,.3));
+    border:3px solid #0ff;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    font-size:24px;
+    cursor:pointer;
+    user-select:none;
+    transition:all .1s;
+    box-shadow:0 0 15px #0ff6, inset 0 0 10px #0ff3;
+  }
+  .dpad-btn:active{
+    transform:scale(0.9);
+    box-shadow:0 0 25px #0ff, inset 0 0 20px #0ff8;
+    background:linear-gradient(135deg, rgba(0,255,255,.6), rgba(255,0,255,.6));
+  }
+  .dpad-btn.empty{opacity:0;pointer-events:none;}
+  
+  .start-btn{
+    width:100px;
+    height:100px;
+    background:radial-gradient(circle, #ff0000, #ff00ff);
+    border:4px solid #fff;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    font-size:14px;
+    font-weight:bold;
+    color:#fff;
+    text-shadow:0 0 10px #000;
+    cursor:pointer;
+    user-select:none;
+    animation:startPulse 1.5s ease-in-out infinite;
+    box-shadow:0 0 30px #ff00ff, inset 0 0 20px rgba(255,255,255,.3);
+  }
+  @keyframes startPulse{0%,100%{transform:scale(1);box-shadow:0 0 30px #ff00ff;}50%{transform:scale(1.05);box-shadow:0 0 50px #ff00ff, 0 0 100px #ff00ff88;}}
+  .start-btn:active{transform:scale(0.95);}
+  
+  .flash-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s;}
+  .flash-overlay.white{background:#fff;opacity:1;}
+  .flash-overlay.violet{background:radial-gradient(circle,#ff00ff,#4400ff);opacity:0.4;}
+  .flash-overlay.gold{background:radial-gradient(circle,#ffd700,#ff8c00);opacity:0.3;}
+  .flash-overlay.red{background:radial-gradient(circle,#ff0000,#ff6600);opacity:0.5;}
+  .flash-overlay.cyan{background:radial-gradient(circle,#00ffff,#0066ff);opacity:0.4;}
+  .flash-overlay.green{background:radial-gradient(circle,#00ff66,#00cc00);opacity:0.3;}
+  .flash-overlay.purple{background:radial-gradient(circle,#cc00ff,#6600cc);opacity:0.4;}
+  
+  @media(max-width:1024px){
+    .arcade{grid-template-columns:60px 1fr 150px;}
+    .badge{font-size:10px;padding:6px;}
+    .dpad{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);}
+    .dpad-btn{font-size:20px;}
+    .start-btn{width:80px;height:80px;font-size:12px;}
+  }
+</style>
+</head>
+<body>
+  <div class="flash-overlay" id="flashOverlay"></div>
+  
+  <div class="arcade">
+    <!-- VISUALIZER ESQUERDA -->
+    <div class="visualizer" id="visualizer">
+      <!-- Barras geradas via JS -->
+    </div>
+    
+    <!-- GAME AREA -->
+    <div class="game-area">
+      <canvas id="cv" width="600" height="600"></canvas>
+    </div>
+    
+    <!-- HUD DIREITA -->
+    <div class="hud">
+      <div class="badge" style="font-size:16px;font-weight:bold;border-color:#ff00ff;color:#ff00ff;">🕹️ NEON SNAKE</div>
+      <div class="badge">Score: <span id="score">0</span></div>
+      <div class="badge">Best: <span id="best">0</span></div>
+      <div class="badge world">World: <span id="worldLabel">1 • Cyberpunk</span></div>
+      <div class="badge golden" id="goldenTimer" style="display:none;">⚡ Golden: <span id="goldenTime">0</span>s</div>
+      <div class="badge speed" id="speedTimer" style="display:none;">🔥 Speed: <span id="speedTime">0</span>s</div>
+      <div class="badge ghost" id="ghostTimer" style="display:none;">👻 Ghost: <span id="ghostTime">0</span>s</div>
+      <div class="badge multiplier" id="multiplierBadge" style="display:none;">💰 Multi: <span id="multiplierCount">0</span>/5</div>
+      <div class="badge" id="comboDisplay" style="display:none;">🔥 COMBO x<span id="comboValue">1</span></div>
+      <div class="badge">💎 <span id="powerupCount">Info</span></div>
+      <div class="badge" id="msg">Press START</div>
+    </div>
+    
+    <!-- CONTROLES EMBAIXO -->
+    <div class="controls">
+      <div class="dpad">
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="up">▲</div>
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="left">◄</div>
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="right">►</div>
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="down">▼</div>
+        <div class="dpad-btn empty"></div>
+      </div>
+      <div class="start-btn" id="startBtn">START</div>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  const CELL=20, COLS=30, ROWS=30;
+  const cv=document.getElementById('cv');
+  const ctx=cv.getContext('2d');
+  const scoreEl=document.getElementById('score');
+  const bestEl=document.getElementById('best');
+  const msgEl=document.getElementById('msg');
+  const worldEl=document.getElementById('worldLabel');
+  const goldenTimerEl=document.getElementById('goldenTimer');
+  const goldenTimeEl=document.getElementById('goldenTime');
+  const speedTimerEl=document.getElementById('speedTimer');
+  const speedTimeEl=document.getElementById('speedTime');
+  const ghostTimerEl=document.getElementById('ghostTimer');
+  const ghostTimeEl=document.getElementById('ghostTime');
+  const multiplierBadgeEl=document.getElementById('multiplierBadge');
+  const multiplierCountEl=document.getElementById('multiplierCount');
+  const comboDisplayEl=document.getElementById('comboDisplay');
+  const comboValueEl=document.getElementById('comboValue');
+  const powerupCountEl=document.getElementById('powerupCount');
+  const flashOverlay=document.getElementById('flashOverlay');
+  const startBtn=document.getElementById('startBtn');
+  const visualizerEl=document.getElementById('visualizer');
+
+  const POWERUP_TYPES = {
+    GOLDEN: { color: '#ffd700', icon: '⚡' },
+    SPEED: { color: '#ff3333', icon: '🔥' },
+    GHOST: { color: '#66ddff', icon: '👻' },
+    MULTIPLIER: { color: '#33ff66', icon: '💰' },
+    SHRINK: { color: '#cc00ff', icon: '📉' }
+  };
+  
+  function getPowerupWeights(){
+    const w = worldIndex;
+    if(w <= 1) return { GOLDEN: 35, SPEED: 25, GHOST: 15, MULTIPLIER: 15, SHRINK: 10 };
+    if(w === 2) return { GOLDEN: 20, SPEED: 20, GHOST: 30, MULTIPLIER: 20, SHRINK: 10 };
+    if(w === 3) return { GOLDEN: 20, SPEED: 15, GHOST: 20, MULTIPLIER: 30, SHRINK: 15 };
+    return { GOLDEN: 20, SPEED: 20, GHOST: 20, MULTIPLIER: 20, SHRINK: 20 };
+  }
+
+  let snake=[], dir={x:1,y:0}, nextDir={x:1,y:0};
+  let apple=null, score=0, best=+localStorage.neonSnakeBest||0;
+  let tick=100, baseTick=100;
+  let logicTimer=null;
+  let restarting=false;
+  let combo=0, lastEat=0;
+  let powerUps=[];
+  let walls=[]; // NOVO: Obstáculos
+  let lastWallCount=0; // NOVO: Guardar última quantidade para evitar repetição
+  let lastPowerupScore = 0;
+  const POWERUP_INTERVAL = 10;
+  let powerupsOnMap = 0;
+  let currentLevel = 1;
+  
+  const GOLDEN_MS=5000;
+  let goldenActive=false, goldenEnd=0;
+  let speedActive=false, speedEnd=0;
+  let ghostActive=false, ghostEnd=0;
+  let multiplierActive=false, multiplierApplesLeft=0;
+  
+  const particles=[];
+  const MAX_PARTICLES=150;
+  const floatingTexts = [];
+
+  const WORLDS=[
+    { name:'Cyberpunk',   bg:'#0a0022', color:'#0ff', bpm:90,  bass:55,  palette:['#0ff','#f0f','#ff0'] },
+    { name:'Synthwave', bg:'#220a0a', color:'#ff1493', bpm:100, bass:65, palette:['#ff1493','#ff8800','#ffff00'] },
+    { name:'Neon Forest',      bg:'#0a2200', color:'#0f0', bpm:110, bass:73, palette:['#0f0','#0ff','#88ffaa'] },
+    { name:'Electric',   bg:'#000a22', color:'#0af', bpm:120, bass:82, palette:['#0af','#80f','#fff'] },
+    { name:'Rainbow',    bg:'#2a0a2a', color:'#0ff', bpm:130, bass:92, palette:['rainbow','#fff','#0ff'] }
+  ];
+  let worldIndex=0;
+
+  let transitioning=false, transitionText='', transitionStart=0;
+  const TRANSITION_MS=2000;
+  let lastBeatNow=performance.now();
+  let shake=0, shakeT=0, shakeRot=0;
+  let haloIntensity=0;
+
+  let audioCtx=null, baseGain=null, analyser=null;
+  let delayNode=null, feedbackGain=null, filterNode=null;
+  let bassOsc=null, bassGain=null, lfo=null, lfoGain=null;
+  let padGains=[], padOscs=[];
+  let loopRunning=false, tempo=90;
+  
+  const freqBars = new Array(16).fill(0);
+  let dataArray = null;
+
+  // Criar barras do visualizer
+  for(let i=0; i<16; i++){
+    const bar = document.createElement('div');
+    bar.className = 'vis-bar';
+    bar.style.width = '0%';
+    visualizerEl.appendChild(bar);
+  }
+  const visBars = visualizerEl.querySelectorAll('.vis-bar');
+
+  function setupAudio(){
+    if(loopRunning) return;
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    baseGain = audioCtx.createGain();
+    baseGain.gain.value = 0.10;
+    
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    
+    delayNode = audioCtx.createDelay(); delayNode.delayTime.value=0.25;
+    feedbackGain = audioCtx.createGain(); feedbackGain.gain.value=0.25;
+    filterNode = audioCtx.createBiquadFilter(); filterNode.type='lowpass'; filterNode.frequency.value=6000;
+    
+    baseGain.connect(analyser);
+    baseGain.connect(audioCtx.destination);
+    baseGain.connect(delayNode);
+    delayNode.connect(feedbackGain); feedbackGain.connect(delayNode);
+    delayNode.connect(filterNode); filterNode.connect(audioCtx.destination);
+    
+    bassOsc = audioCtx.createOscillator(); bassOsc.type='sawtooth';
+    bassGain = audioCtx.createGain(); bassGain.gain.value=0.10;
+    bassOsc.connect(bassGain).connect(baseGain);
+    lfo = audioCtx.createOscillator(); lfoGain = audioCtx.createGain(); 
+    lfo.frequency.value=2; lfoGain.gain.value=25;
+    lfo.connect(lfoGain).connect(bassOsc.frequency);
+    bassOsc.start(); lfo.start();
+    loopRunning=true;
+    applyWorld(true);
+    scheduleBeat();
+  }
+
+  function beep(freq,durMs,type='sine',vol=0.12){
+    if(!audioCtx) return;
+    const osc=audioCtx.createOscillator(); const g=audioCtx.createGain();
+    osc.type=type; osc.frequency.value=freq; g.gain.value=vol;
+    osc.connect(g).connect(baseGain);
+    const now=audioCtx.currentTime; osc.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, now + durMs/1000);
+    osc.stop(now + durMs/1000);
+  }
+
+  function scheduleBeat(){
+    if(!loopRunning) return;
+    const beat = 60/tempo;
+    const nowT = audioCtx.currentTime;
+    const kick = audioCtx.createOscillator(); kick.type='sine';
+    const kg = audioCtx.createGain();
+    kick.frequency.setValueAtTime(150, nowT);
+    kick.frequency.exponentialRampToValueAtTime(40, nowT+0.2);
+    kg.gain.setValueAtTime(0.4, nowT);
+    kg.gain.exponentialRampToValueAtTime(0.001, nowT+0.30);
+    kick.connect(kg).connect(baseGain);
+    kick.start(); kick.stop(nowT+0.30);
+    lastBeatNow = performance.now();
+    if(goldenActive) triggerShake(8, 500, 0.02);
+    else triggerShake(2, 100, 0);
+    setTimeout(scheduleBeat, beat*1000);
+  }
+
+  function applyWorld(first=false){
+    const W = WORLDS[worldIndex];
+    document.body.style.background = `radial-gradient(circle at 50% 20%, ${W.bg}, #000)`;
+    cv.style.boxShadow = `0 0 40px ${W.color}99, inset 0 0 50px ${W.color}33`;
+    if(audioCtx && bassOsc){
+      bassOsc.frequency.linearRampToValueAtTime(W.bass, audioCtx.currentTime+1.0);
+      tempo = W.bpm;
+    }
+    worldEl.textContent = `${worldIndex+1} • ${W.name}`;
+  }
+
+  function activateGolden(){
+    goldenActive=true; goldenEnd = Date.now() + 5000;
+    goldenTimerEl.style.display='block';
+    goldenTimerEl.classList.add('active');
+    cv.classList.add('golden-active');
+    triggerFlash('white', 200);
+    setTimeout(()=>triggerFlash('violet', 600), 200);
+    if(audioCtx){
+      baseGain.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime+0.4);
+      filterNode.frequency.linearRampToValueAtTime(1500, audioCtx.currentTime+0.4);
+      feedbackGain.gain.linearRampToValueAtTime(0.6, audioCtx.currentTime+0.4);
+    }
+  }
+
+  function deactivateGolden(){
+    goldenActive=false;
+    goldenTimerEl.style.display='none';
+    goldenTimerEl.classList.remove('active');
+    cv.classList.remove('golden-active');
+    triggerFlash('gold', 400);
+    if(audioCtx){
+      baseGain.gain.linearRampToValueAtTime(0.10, audioCtx.currentTime+0.4);
+      filterNode.frequency.linearRampToValueAtTime(6000, audioCtx.currentTime+0.4);
+      feedbackGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime+0.4);
+    }
+  }
+
+  function activateSpeed(){
+    speedActive=true; speedEnd = Date.now() + 4000;
+    speedTimerEl.style.display='block';
+    speedTimerEl.classList.add('active');
+    triggerFlash('red', 300);
+    tick = baseTick / 2;
+    clearInterval(logicTimer);
+    logicTimer = setInterval(stepLogic, tick);
+    beep(800, 150, 'sawtooth', 0.25);
+  }
+
+  function deactivateSpeed(){
+    speedActive=false;
+    speedTimerEl.style.display='none';
+    speedTimerEl.classList.remove('active');
+    tick = baseTick;
+    clearInterval(logicTimer);
+    logicTimer = setInterval(stepLogic, tick);
+  }
+
+  function activateGhost(){
+    ghostActive=true; ghostEnd = Date.now() + 6000;
+    ghostTimerEl.style.display='block';
+    ghostTimerEl.classList.add('active');
+    triggerFlash('cyan', 400);
+    beep(400, 300, 'sine', 0.15);
+    setTimeout(()=>beep(350, 300, 'sine', 0.10), 100);
+  }
+
+  function deactivateGhost(){
+    ghostActive=false;
+    ghostTimerEl.style.display='none';
+    ghostTimerEl.classList.remove('active');
+  }
+
+  function activateMultiplier(){
+    multiplierActive=true; multiplierApplesLeft=5;
+    multiplierBadgeEl.style.display='block';
+    multiplierBadgeEl.classList.add('active');
+    multiplierCountEl.textContent = multiplierApplesLeft;
+    triggerFlash('green', 300);
+    beep(600, 80, 'square', 0.18);
+    setTimeout(()=>beep(800, 80, 'square', 0.18), 80);
+    setTimeout(()=>beep(1000, 100, 'square', 0.20), 160);
+  }
+
+  function deactivateMultiplier(){
+    multiplierActive=false;
+    multiplierBadgeEl.style.display='none';
+    multiplierBadgeEl.classList.remove('active');
+  }
+
+  function activateShrink(x, y){
+    triggerFlash('purple', 300);
+    beep(200, 200, 'sawtooth', 0.22);
+    spawnParticles(x, y, 30, '#cc00ff');
+    const toRemove = Math.min(3, snake.length - 3);
+    for(let i=0; i<toRemove; i++) snake.pop();
+  }
+
+  function triggerFlash(type, durationMs){
+    flashOverlay.className = `flash-overlay ${type}`;
+    setTimeout(()=>{ flashOverlay.className = 'flash-overlay'; }, durationMs);
+  }
+
+  const rnd=n=>Math.floor(Math.random()*n);
+  const same=(a,b)=>a&&b&&a.x===b.x&&a.y===b.y;
+  const isInt=n=>Number.isInteger(n);
+  const isFiniteNum=n=>Number.isFinite(n);
+  const validCell=(x,y)=>isInt(x)&&isInt(y)&&x>=0&&x<COLS&&y>=0&&y<ROWS;
+
+  function weightedRandom(){
+    const weights = getPowerupWeights();
+    const types = Object.keys(weights);
+    const totalWeight = types.reduce((sum, type) => sum + weights[type], 0);
+    let rand = Math.random() * totalWeight;
+    for(const type of types){
+      rand -= weights[type];
+      if(rand <= 0) return type;
+    }
+    return types[0];
+  }
+
+  function updateLevel(){
+    currentLevel = Math.floor(score / POWERUP_INTERVAL) + 1;
+  }
+  
+  function getPowerupCountForLevel(){
+    const levelInCycle = ((currentLevel - 1) % 10) + 1;
+    return 11 - levelInCycle;
+  }
+  
+  // NOVO: Gerar paredes com quantidade ALEATÓRIA (2-9, nunca igual ao anterior)
+  function generateWalls(){
+    walls = [];
+    
+    // Escolher quantidade diferente da última vez
+    let count;
+    do {
+      count = 2 + Math.floor(Math.random() * 8); // 2 a 9
+    } while (count === lastWallCount);
+    lastWallCount = count;
+    
+    for(let i=0; i<count; i++){
+      let w; let guard=0;
+      do{ w={x:rnd(COLS), y:rnd(ROWS)}; guard++; if(guard>300) break; }
+      while(
+        snake.some(s=>same(s,w)) || 
+        (apple && same(w,apple)) ||
+        powerUps.some(p=>same(p.pos,w)) ||
+        walls.some(wall=>same(wall,w)) ||
+        (Math.abs(w.x-Math.floor(COLS/2))<3 && Math.abs(w.y-Math.floor(ROWS/2))<3) // evitar centro
+      );
+      if(validCell(w.x,w.y)) walls.push(w);
+    }
+  }
+  
+  function generateInitialPowerups(){
+    powerUps = [];
+    powerupsOnMap = 0;
+    updateLevel();
+    const count = getPowerupCountForLevel();
+    for(let i=0; i<count; i++){
+      spawnPowerup();
+    }
+  }
+
+  function spawnPowerup(){
+    const type = weightedRandom();
+    let pos; let guard=0;
+    do{ pos={x:rnd(COLS), y:rnd(ROWS)}; guard++; if(guard>200) break; }
+    while(
+      snake.some(s=>same(s,pos)) || 
+      (apple && same(pos,apple)) || 
+      powerUps.some(p=>same(p.pos,pos)) ||
+      walls.some(w=>same(w,pos))
+    );
+    if(validCell(pos.x, pos.y)){
+      powerUps.push({ pos, type });
+      powerupsOnMap++;
+      updatePowerupCounter();
+    }
+  }
+
+  function updatePowerupCounter(){
+    const nextSpawn = Math.ceil(score / POWERUP_INTERVAL) * POWERUP_INTERVAL + POWERUP_INTERVAL;
+    const levelInCycle = ((currentLevel - 1) % 10) + 1;
+    const cycle = Math.floor((currentLevel - 1) / 10) + 1;
+    powerupCountEl.textContent = `${powerupsOnMap} • Lv${levelInCycle} C${cycle}`;
+  }
+  
+  function updateCombo(){
+    if(combo > 1){
+      comboDisplayEl.style.display='block';
+      comboValueEl.textContent = combo;
+    } else {
+      comboDisplayEl.style.display='none';
+    }
+  }
+
+  function startGame(){
+    clearInterval(logicTimer);
+    const cx=Math.floor(COLS/2), cy=Math.floor(ROWS/2);
+    snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+    dir=nextDir={x:1,y:0};
+    score=0; combo=0; particles.length=0; floatingTexts.length=0;
+    lastPowerupScore=0;
+    currentLevel=1;
+    powerUps=[];
+    powerupsOnMap=0;
+    walls=[];
+    lastWallCount=0; // Reset para permitir qualquer quantidade no primeiro nível
+    generateWalls();
+    generateInitialPowerups();
+    placeApple();
+    transitioning=false; transitionText='';
+    msgEl.textContent='PLAYING';
+    scoreEl.textContent=score; bestEl.textContent=best;
+    updatePowerupCounter();
+    comboDisplayEl.style.display='none';
+    tick = baseTick;
+    logicTimer=setInterval(stepLogic, tick);
+    if(goldenActive) deactivateGolden();
+    if(speedActive) deactivateSpeed();
+    if(ghostActive) deactivateGhost();
+    if(multiplierActive) deactivateMultiplier();
+  }
+
+  function placeApple(){
+    let tries=0;
+    do{ 
+      apple={x:rnd(COLS), y:rnd(ROWS)}; 
+      tries++; 
+      if(tries>100) break; 
+    }
+    while(
+      snake.some(p=>same(p,apple)) || 
+      powerUps.some(p=>same(p.pos,apple)) ||
+      walls.some(w=>same(w,apple))
+    );
+    if(!validCell(apple.x, apple.y)) apple={x:0,y:0};
+  }
+
+  function stepLogic(){
+    if(transitioning) return;
+    if(nextDir) dir = nextDir;
+    let head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+
+    // Wrap em Golden/Ghost
+    if(goldenActive || ghostActive){
+      if(head.x<0) head.x=COLS-1; if(head.x>=COLS) head.x=0;
+      if(head.y<0) head.y=ROWS-1; if(head.y>=ROWS) head.y=0;
+    } else {
+      // Colisão com paredes
+      if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS){ crash(); return; }
+    }
+
+    // NOVO: Colisão com obstáculos (exceto em Ghost)
+    if(!ghostActive && walls.some(w=>same(w,head))){ crash(); return; }
+
+    // Auto-colisão
+    if(!goldenActive && !ghostActive && snake.some(p=>same(p,head))){ crash(); return; }
+
+    snake.unshift(head);
+
+    if(apple && same(head,apple)){
+      const now=Date.now();
+      combo = (now-lastEat<3000) ? combo+1 : 1; lastEat=now;
+      
+      let basePoints = 1;
+      const comboMult = 1 + (combo-1)*0.5;
+      const multiplierMult = multiplierActive ? 3 : 1;
+      const points = Math.round(basePoints * comboMult * multiplierMult);
+      
+      score += points;
+      scoreEl.textContent=score;
+      
+      if(multiplierActive){
+        addFloatingText(`+${points}`, head.x, head.y, '#33ff66');
+        multiplierApplesLeft--;
+        multiplierCountEl.textContent = multiplierApplesLeft;
+        if(multiplierApplesLeft <= 0) deactivateMultiplier();
+      }
+      
+      beep(600+combo*50, 120, 'square', 0.20);
+      spawnParticles(head.x, head.y, 10, getSnakeColor());
+      updateCombo();
+
+      const oldLevel = currentLevel;
+      updateLevel();
+      
+      if(Math.floor(score / POWERUP_INTERVAL) > Math.floor(lastPowerupScore / POWERUP_INTERVAL)){
+        spawnPowerup();
+        lastPowerupScore = score;
+      }
+      
+      if(currentLevel !== oldLevel){
+        const levelInCycle = ((currentLevel - 1) % 10) + 1;
+        if(levelInCycle === 1){
+          generateInitialPowerups();
+          generateWalls(); // Regenerar paredes
+        }
+      }
+      
+      maybeWorldTransition();
+      placeApple();
+    }
+    else if(powerUps.some(p=>same(p.pos,head))){
+      const powerup = powerUps.find(p=>same(p.pos,head));
+      powerUps = powerUps.filter(p=>!same(p.pos,head));
+      powerupsOnMap--;
+      updatePowerupCounter();
+      
+      switch(powerup.type){
+        case 'GOLDEN': activateGolden(); break;
+        case 'SPEED': activateSpeed(); break;
+        case 'GHOST': activateGhost(); break;
+        case 'MULTIPLIER': activateMultiplier(); break;
+        case 'SHRINK': activateShrink(head.x, head.y); break;
+      }
+    }
+    else {
+      snake.pop();
+    }
+
+    const now = Date.now();
+    if(goldenActive && now > goldenEnd) deactivateGolden();
+    if(speedActive && now > speedEnd) deactivateSpeed();
+    if(ghostActive && now > ghostEnd) deactivateGhost();
+  }
+
+  function crash(){
+    if(goldenActive || ghostActive || restarting) return;
+    restarting=true;
+    beep(120, 400, 'sawtooth', 0.25);
+    best=Math.max(best,score); bestEl.textContent=best; localStorage.neonSnakeBest=best;
+    clearInterval(logicTimer);
+    combo=0; updateCombo();
+    msgEl.textContent='GAME OVER';
+    setTimeout(()=>{ restarting=false; startGame(); }, 1500);
+  }
+
+  function maybeWorldTransition(){
+    const prevWorld = worldIndex;
+    const s=score;
+    if(s>=80) worldIndex=4; else if(s>=60) worldIndex=3; else if(s>=40) worldIndex=2; else if(s>=20) worldIndex=1; else worldIndex=0;
+    if(worldIndex!==prevWorld){
+      transitioning=true; transitionStart=performance.now();
+      transitionText = `ENTERING ${WORLDS[worldIndex].name.toUpperCase()}`;
+      applyWorld();
+      generateInitialPowerups();
+      generateWalls();
+      setTimeout(()=>{ transitioning=false; }, TRANSITION_MS);
+    }
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    try{ draw(); updateVisualizer(); }catch(err){ console.error(err); }
+  }
+
+  function triggerShake(px, durationMs, rot){
+    shake = Math.max(shake, px);
+    shakeT = performance.now() + durationMs;
+    shakeRot = rot||0;
+  }
+
+  function updateVisualizer(){
+    if(analyser && dataArray){
+      analyser.getByteFrequencyData(dataArray);
+      for(let i=0; i<16; i++){
+        const target = dataArray[i*2] / 255;
+        freqBars[i] += (target - freqBars[i]) * 0.3;
+        visBars[i].style.width = (freqBars[i] * 100) + '%';
+        if(goldenActive){
+          visBars[i].classList.add('golden');
+        } else {
+          visBars[i].classList.remove('golden');
+        }
+      }
+    }
+  }
+
+  function draw(){
+    const W = WORLDS[worldIndex];
+
+    if(goldenActive){
+      const tLeft = Math.max(0, goldenEnd - Date.now());
+      goldenTimeEl.textContent = (tLeft/1000).toFixed(1);
+      haloIntensity = Math.min(1, haloIntensity + 0.05);
+    } else {
+      haloIntensity = Math.max(0, haloIntensity - 0.05);
+    }
+    
+    if(speedActive){
+      const tLeft = Math.max(0, speedEnd - Date.now());
+      speedTimeEl.textContent = (tLeft/1000).toFixed(1);
+    }
+    
+    if(ghostActive){
+      const tLeft = Math.max(0, ghostEnd - Date.now());
+      ghostTimeEl.textContent = (tLeft/1000).toFixed(1);
+    }
+
+    const now=performance.now();
+    const activeShake = Math.max(0, shakeT - now);
+    let offX=0, offY=0, rot=0;
+    if(activeShake>0){
+      const k = activeShake/500;
+      offX = (Math.random()*2-1) * shake * k;
+      offY = (Math.random()*2-1) * shake * k;
+      rot = (Math.random()*2-1) * (shakeRot||0) * k;
+    }
+
+    const sinceBeat = now - lastBeatNow;
+    const beatPhase = Math.max(0, 1 - sinceBeat/200);
+    const gridAlpha = 0.06 + beatPhase * 0.14;
+
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.translate(offX, offY);
+    if(rot) ctx.rotate(rot);
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,cv.width,cv.height);
+
+    // Grade
+    ctx.strokeStyle = hexToRgba(W.color, (goldenActive? (gridAlpha*1.6) : gridAlpha));
+    ctx.beginPath();
+    for(let i=1;i<COLS;i++){
+      const x=i*CELL + (goldenActive? Math.sin(now/100 + i)*3 : 0);
+      ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, cv.height);
+    }
+    for(let j=1;j<ROWS;j++){
+      const y=j*CELL + (goldenActive? Math.sin(now/120 + j)*3 : 0);
+      ctx.moveTo(0, y+.5); ctx.lineTo(cv.width, y+.5);
+    }
+    ctx.stroke();
+
+    // NOVO: Desenhar paredes
+    for(const wall of walls){
+      if(validCell(wall.x, wall.y)){
+        ctx.fillStyle = '#ff00ff';
+        ctx.shadowColor = '#ff00ff';
+        ctx.shadowBlur = 10;
+        drawCell(wall.x, wall.y, 3);
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Maçã
+    if(apple && validCell(apple.x, apple.y)){
+      const pulseFreq = 3;
+      const appleGlow = Math.sin(Date.now() / (200 / pulseFreq)) * 0.5 + 0.5;
+      const snakeColor = getSnakeColor();
+      ctx.save();
+      ctx.shadowColor = snakeColor;
+      ctx.shadowBlur = 20 + appleGlow * 20;
+      ctx.globalAlpha = 0.85 + appleGlow * 0.15;
+      safeDrawOrb(apple.x, apple.y, snakeColor);
+      ctx.restore();
+    }
+
+    // Power-ups
+    for(const p of powerUps){ 
+      if(validCell(p.pos.x, p.pos.y)){
+        const color = POWERUP_TYPES[p.type].color;
+        safeDrawOrb(p.pos.x, p.pos.y, color);
+      }
+    }
+
+    updateParticles();
+    updateFloatingTexts();
+
+    // Cobra
+    snake.forEach((p,i)=>{
+      const hueBase = (W.palette[0]==='rainbow') ? ((now/100 + i*6)%360) : null;
+      let fill = goldenActive ? 'hsl(50,100%,65%)' 
+               : speedActive ? '#ff6666'
+               : (hueBase!=null ? `hsl(${hueBase},100%,60%)` : W.palette[0]);
+      
+      ctx.fillStyle = fill;
+      ctx.shadowColor = goldenActive? '#ffd700' : speedActive? '#ff3333' : W.color;
+      ctx.shadowBlur = goldenActive? 20 : speedActive? 15 : 8;
+      ctx.globalAlpha = ghostActive ? 0.5 : 1.0;
+      drawCell(p.x, p.y, 4);
+      ctx.globalAlpha = 1.0;
+      ctx.shadowBlur=0;
+    });
+
+    const glow = 30 + (beatPhase*18) + score/8;
+    cv.style.boxShadow = `0 0 ${glow}px ${W.color}AA, inset 0 0 ${Math.max(20,glow/2)}px ${W.color}33`;
+
+    // Halo Golden
+    if(haloIntensity > 0){
+      const cxm=cv.width/2, cym=cv.height/2; 
+      const maxR=Math.hypot(cxm,cym);
+      const freq = 2.0;
+      const s = (Math.sin(Date.now()/1000 * Math.PI*2*freq)+1)/2;
+      const alpha = haloIntensity * 0.35 * s;
+      const r=maxR*(0.7 + 0.15*s);
+      
+      if(isFiniteNum(cxm) && isFiniteNum(cym) && isFiniteNum(r)){
+        const grd=ctx.createRadialGradient(cxm,cym, Math.max(0.1, r*0.2), cxm,cym, Math.max(0.2, r));
+        grd.addColorStop(0, `rgba(255,215,0, ${alpha})`);
+        grd.addColorStop(0.5, `rgba(255,140,0, ${alpha*0.5})`);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalCompositeOperation='screen';
+        ctx.fillStyle=grd; ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.globalCompositeOperation='source-over';
+      }
+    }
+
+    // Transição
+    if(transitioning){
+      const t = (now - transitionStart);
+      const a = Math.min(1, t/200);
+      if(t<150){
+        ctx.fillStyle=`rgba(255,255,255, ${1 - t/150})`;
+        ctx.fillRect(0,0,cv.width,cv.height);
+      }
+      ctx.save();
+      ctx.fillStyle = `rgba(255,255,255, ${a})`;
+      ctx.font='bold 24px monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.shadowColor=W.color; ctx.shadowBlur=18;
+      ctx.fillText(transitionText, cv.width/2, cv.height/2);
+      ctx.restore();
+    }
+  }
+
+  function drawCell(x,y,r){
+    const px=x*CELL, py=y*CELL;
+    ctx.beginPath();
+    ctx.moveTo(px+r,py);
+    ctx.arcTo(px+CELL,py,px+CELL,py+CELL,r);
+    ctx.arcTo(px+CELL,py+CELL,px,py+CELL,r);
+    ctx.arcTo(px,py+CELL,px,py,r);
+    ctx.arcTo(px,py,px+CELL,py,r);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function safeDrawOrb(x,y,color){
+    const px = x*CELL + CELL/2;
+    const py = y*CELL + CELL/2;
+    if(!isFiniteNum(px) || !isFiniteNum(py)) return false;
+    try{
+      const r0=2, r1=8;
+      const g = ctx.createRadialGradient(px,py, r0, px,py, r1);
+      g.addColorStop(0,'#fff');
+      g.addColorStop(.3,color);
+      g.addColorStop(1,'#0000');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,8,0,Math.PI*2); ctx.fill();
+      return true;
+    }catch(_){
+      ctx.fillStyle=color; ctx.beginPath(); ctx.arc(px,py,6,0,Math.PI*2); ctx.fill();
+      return false;
+    }
+  }
+
+  function hexToRgba(hex, a){
+    if(/^#([0-9a-f]{3}){1,2}$/i.test(hex)){
+      let c=hex.slice(1); if(c.length===3) c=c.split('').map(x=>x+x).join('');
+      const n=parseInt(c,16); const r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    return hex;
+  }
+
+  function getSnakeColor(){
+    const W=WORLDS[worldIndex];
+    const now = performance.now();
+    if(goldenActive) return 'hsl(50,100%,65%)';
+    if(speedActive) return '#ff6666';
+    if(W.palette[0]==='rainbow') return `hsl(${(now/100)%360},100%,60%)`;
+    return W.palette[0];
+  }
+
+  class Particle{
+    constructor(x,y,color){
+      this.x=x*CELL+CELL/2; this.y=y*CELL+CELL/2;
+      this.vx=(Math.random()*16-8); this.vy=(Math.random()*-10-2);
+      this.life=1; this.color=color;
+    }
+    step(){ this.x+=this.vx; this.y+=this.vy; this.vy+=0.3; this.life-=0.03; }
+    draw(){ 
+      ctx.globalAlpha=Math.max(0,this.life); 
+      ctx.fillStyle=this.color; 
+      ctx.fillRect(this.x,this.y,3,3); 
+      ctx.globalAlpha=1; 
+    }
+  }
+  
+  function spawnParticles(x,y,count,color){
+    for(let i=0;i<count;i++){ 
+      if(particles.length<MAX_PARTICLES) particles.push(new Particle(x,y,color)); 
+    }
+  }
+  
+  function updateParticles(){
+    for(let i=particles.length-1;i>=0;i--){ 
+      const p=particles[i]; p.step(); p.draw(); 
+      if(p.life<=0) particles.splice(i,1); 
+    }
+  }
+
+  class FloatingText{
+    constructor(text,x,y,color){
+      this.text=text;
+      this.x=x*CELL+CELL/2; this.y=y*CELL+CELL/2;
+      this.vy=-1.5; this.life=1; this.color=color;
+    }
+    step(){ this.y+=this.vy; this.life-=0.015; }
+    draw(){
+      ctx.save();
+      ctx.globalAlpha=Math.max(0,this.life);
+      ctx.fillStyle=this.color;
+      ctx.font='bold 14px monospace';
+      ctx.textAlign='center';
+      ctx.shadowColor=this.color; ctx.shadowBlur=8;
+      ctx.fillText(this.text, this.x, this.y);
+      ctx.restore();
+    }
+  }
+  
+  function addFloatingText(text,x,y,color){
+    floatingTexts.push(new FloatingText(text,x,y,color));
+  }
+  
+  function updateFloatingTexts(){
+    for(let i=floatingTexts.length-1;i>=0;i--){
+      const t=floatingTexts[i]; t.step(); t.draw();
+      if(t.life<=0) floatingTexts.splice(i,1);
+    }
+  }
+
+  // CONTROLES
+  startBtn.addEventListener('click', ()=>{
+    if(!loopRunning) setupAudio();
+    if(!logicTimer) startGame();
+  });
+
+  document.querySelectorAll('.dpad-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const d = btn.dataset.dir;
+      if(d==='up') nextDir={x:0,y:-1};
+      if(d==='down') nextDir={x:0,y:1};
+      if(d==='left') nextDir={x:-1,y:0};
+      if(d==='right') nextDir={x:1,y:0};
+    });
+  });
+
+  window.addEventListener('keydown',e=>{
+    if(e.code==='Space'){ 
+      if(!loopRunning) setupAudio(); 
+      if(!logicTimer) startGame(); 
+    }
+    const dirs={
+      w:{x:0,y:-1}, a:{x:-1,y:0}, s:{x:0,y:1}, d:{x:1,y:0},
+      ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, 
+      ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0}
+    };
+    if(dirs[e.key]) nextDir = dirs[e.key];
+  });
+
+  bestEl.textContent = best;
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

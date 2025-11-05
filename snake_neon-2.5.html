@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>🕹️ NEON SNAKE ARCADE v1.8 - OPTIMIZED 🕹️</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+<style>
+  * {box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:#000;font-family:'Courier New',monospace;color:#0ff;overflow:hidden;}
+  
+  /* ARCADE CABINET */
+  .arcade{
+    display:grid;
+    grid-template-columns:80px 1fr 200px;
+    grid-template-rows:600px auto;
+    gap:10px;
+    height:100vh;
+    padding:15px;
+    background:radial-gradient(circle at 50% 50%, #0a0022, #000);
+  }
+  
+  /* VISUALIZER ESQUERDA - MESMA ALTURA DO CANVAS */
+  .visualizer{
+    grid-row:1;
+    grid-column:1;
+    display:flex;
+    flex-direction:column-reverse;
+    justify-content:flex-start;
+    gap:4px;
+    padding:10px;
+    background:rgba(0,20,40,.3);
+    border:2px solid #0ff;
+    border-radius:10px;
+    box-shadow:0 0 20px #0ff6, inset 0 0 20px #0ff2;
+    height:600px;
+  }
+  .vis-bar{
+    height:8px;
+    background:linear-gradient(90deg, #0ff, #f0f);
+    border-radius:2px;
+    transition:width .1s ease;
+    box-shadow:0 0 8px #0ff;
+  }
+  .vis-bar.golden{background:linear-gradient(90deg, #ffd700, #ff8c00);}
+  
+  /* GAME AREA */
+  .game-area{
+    grid-row:1;
+    grid-column:2;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    height:600px;
+  }
+  
+  canvas{
+    background:radial-gradient(circle at 40% 40%,#050015,#000);
+    border:4px solid #0ff;
+    border-radius:15px;
+    box-shadow:0 0 30px #0ff8, inset 0 0 40px #0ff2;
+    max-width:100%;
+    height:auto;
+  }
+  
+  canvas.golden-active{
+    animation:goldenZoom 1s ease-in-out infinite alternate;
+    filter:blur(1px) saturate(1.6) brightness(1.2);
+  }
+  @keyframes goldenZoom{to{transform:scale(1.05)}}
+  
+  /* HUD DIREITA - MESMA ALTURA DO CANVAS */
+  .hud{
+    grid-row:1;
+    grid-column:3;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding:15px;
+    background:rgba(0,20,40,.3);
+    border:2px solid #ff00ff;
+    border-radius:10px;
+    box-shadow:0 0 20px #ff00ff66, inset 0 0 20px #ff00ff22;
+    overflow-y:auto;
+    height:600px;
+  }
+  .hud::-webkit-scrollbar{width:6px;}
+  .hud::-webkit-scrollbar-track{background:rgba(255,0,255,.1);}
+  .hud::-webkit-scrollbar-thumb{background:#ff00ff;border-radius:3px;}
+  
+  .badge{
+    background:rgba(0,0,0,.5);
+    border:1px solid #0ff;
+    border-radius:8px;
+    padding:8px;
+    color:#0ff;
+    font-size:12px;
+    text-align:center;
+    box-shadow:0 0 10px #0ff4;
+    transition:all .3s ease;
+  }
+  .badge.active{
+    animation:badgePulse 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes badgePulse{to{box-shadow:0 0 20px #0ff;border-color:#fff;}}
+  
+  /* NOVO: Performance Monitor */
+  .perf-monitor{
+    border-color:#00ff00;
+    color:#00ff00;
+    font-family:monospace;
+    font-size:10px;
+    text-align:left;
+  }
+  
+  /* NOVO: Combo com escala pulsante */
+  .combo-display.active{
+    animation:comboScale 0.5s ease-in-out infinite !important;
+  }
+  @keyframes comboScale{
+    0%, 100%{transform:scale(1);}
+    50%{transform:scale(1.3);}
+  }
+  
+  /* NOVO: Beat Indicator */
+  .beat-indicator{
+    border-color:#ffd700;
+    color:#ffd700;
+    opacity:0.3;
+    transition:all 0.1s ease;
+    font-size:16px;
+  }
+  .beat-indicator.pulse{
+    opacity:1;
+    transform:scale(1.4);
+    box-shadow:0 0 25px #ffd700;
+  }
+  
+  .badge.golden{border-color:#ffd700;color:#ffd700;}
+  .badge.speed{border-color:#ff3333;color:#ff3333;}
+  .badge.ghost{border-color:#66ddff;color:#66ddff;}
+  .badge.multiplier{border-color:#33ff66;color:#33ff66;}
+  .badge.world{border-color:#ff00ff;color:#ff00ff;font-weight:bold;}
+  
+  /* CONTROLES EMBAIXO */
+  .controls{
+    grid-row:2;
+    grid-column:1/4;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:20px;
+    padding:15px;
+    background:rgba(20,0,40,.4);
+    border:3px solid #ff00ff;
+    border-radius:15px;
+    box-shadow:0 0 25px #ff00ff66, inset 0 0 25px #ff00ff11;
+  }
+  
+  .dpad{
+    display:grid;
+    grid-template-columns:repeat(3,50px);
+    grid-template-rows:repeat(3,50px);
+    gap:5px;
+  }
+  .dpad-btn{
+    background:linear-gradient(135deg, rgba(0,255,255,.3), rgba(255,0,255,.3));
+    border:3px solid #0ff;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    font-size:24px;
+    cursor:pointer;
+    user-select:none;
+    transition:all .1s;
+    box-shadow:0 0 15px #0ff6, inset 0 0 10px #0ff3;
+  }
+  .dpad-btn:active{
+    transform:scale(0.9);
+    box-shadow:0 0 25px #0ff, inset 0 0 20px #0ff8;
+    background:linear-gradient(135deg, rgba(0,255,255,.6), rgba(255,0,255,.6));
+  }
+  .dpad-btn.empty{opacity:0;pointer-events:none;}
+  
+  .start-btn{
+    width:100px;
+    height:100px;
+    background:radial-gradient(circle, #ff0000, #ff00ff);
+    border:4px solid #fff;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    font-size:14px;
+    font-weight:bold;
+    color:#fff;
+    text-shadow:0 0 10px #000;
+    cursor:pointer;
+    user-select:none;
+    animation:startPulse 1.5s ease-in-out infinite;
+    box-shadow:0 0 30px #ff00ff, inset 0 0 20px rgba(255,255,255,.3);
+  }
+  @keyframes startPulse{0%,100%{transform:scale(1);box-shadow:0 0 30px #ff00ff;}50%{transform:scale(1.05);box-shadow:0 0 50px #ff00ff, 0 0 100px #ff00ff88;}}
+  .start-btn:active{transform:scale(0.95);}
+  
+  .flash-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s;}
+  .flash-overlay.white{background:#fff;opacity:1;}
+  .flash-overlay.violet{background:radial-gradient(circle,#ff00ff,#4400ff);opacity:0.4;}
+  .flash-overlay.gold{background:radial-gradient(circle,#ffd700,#ff8c00);opacity:0.3;}
+  .flash-overlay.red{background:radial-gradient(circle,#ff0000,#ff6600);opacity:0.5;}
+  .flash-overlay.cyan{background:radial-gradient(circle,#00ffff,#0066ff);opacity:0.4;}
+  .flash-overlay.green{background:radial-gradient(circle,#00ff66,#00cc00);opacity:0.3;}
+  .flash-overlay.purple{background:radial-gradient(circle,#cc00ff,#6600cc);opacity:0.4;}
+  
+  @media(max-width:1024px){
+    .arcade{grid-template-columns:60px 1fr 150px;}
+    .badge{font-size:10px;padding:6px;}
+    .dpad{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);}
+    .dpad-btn{font-size:20px;}
+    .start-btn{width:80px;height:80px;font-size:12px;}
+  }
+</style>
+</head>
+<body>
+  <div class="flash-overlay" id="flashOverlay"></div>
+  
+  <div class="arcade">
+    <!-- VISUALIZER ESQUERDA -->
+    <div class="visualizer" id="visualizer">
+      <!-- Barras geradas via JS -->
+    </div>
+    
+    <!-- GAME AREA -->
+    <div class="game-area">
+      <canvas id="cv" width="600" height="600"></canvas>
+    </div>
+    
+    <!-- HUD DIREITA -->
+    <div class="hud">
+      <div class="badge" style="font-size:16px;font-weight:bold;border-color:#ff00ff;color:#ff00ff;">🕹️ NEON SNAKE v1.8</div>
+      <div class="badge beat-indicator" id="beatIndicator">🎵</div>
+      <div class="badge">Score: <span id="score">0</span></div>
+      <div class="badge">Best: <span id="best">0</span></div>
+      <div class="badge world">World: <span id="worldLabel">1 • Cyberpunk</span></div>
+      <div class="badge golden" id="goldenTimer" style="display:none;">⚡ Golden: <span id="goldenTime">0</span>s</div>
+      <div class="badge speed" id="speedTimer" style="display:none;">🔥 Speed: <span id="speedTime">0</span>s</div>
+      <div class="badge ghost" id="ghostTimer" style="display:none;">👻 Ghost: <span id="ghostTime">0</span>s</div>
+      <div class="badge multiplier" id="multiplierBadge" style="display:none;">💰 Multi: <span id="multiplierCount">0</span>/5</div>
+      <div class="badge" id="comboDisplay" style="display:none;">🔥 COMBO x<span id="comboValue">1</span></div>
+      <div class="badge">💎 <span id="powerupCount">Info</span></div>
+      <div class="badge perf-monitor" id="perfMonitor">
+        FPS: <span id="fps">60</span><br>
+        Particles: <span id="particleCount">0</span><br>
+        Pool: <span id="poolInfo">0/0</span>
+      </div>
+      <div class="badge" id="msg">Press START</div>
+    </div>
+    
+    <!-- CONTROLES EMBAIXO -->
+    <div class="controls">
+      <div class="dpad">
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="up">▲</div>
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="left">◄</div>
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="right">►</div>
+        <div class="dpad-btn empty"></div>
+        <div class="dpad-btn" data-dir="down">▼</div>
+        <div class="dpad-btn empty"></div>
+      </div>
+      <div class="start-btn" id="startBtn">START<br>GAME</div>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d', {alpha:false}); // Otimização: sem transparência
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const worldEl = document.getElementById('worldLabel');
+  const msgEl = document.getElementById('msg');
+  const startBtn = document.getElementById('startBtn');
+  const flashEl = document.getElementById('flashOverlay');
+  const beatEl = document.getElementById('beatIndicator');
+  const goldenTimerEl = document.getElementById('goldenTimer');
+  const goldenTimeEl = document.getElementById('goldenTime');
+  const speedTimerEl = document.getElementById('speedTimer');
+  const speedTimeEl = document.getElementById('speedTime');
+  const ghostTimerEl = document.getElementById('ghostTimer');
+  const ghostTimeEl = document.getElementById('ghostTime');
+  const multiplierBadgeEl = document.getElementById('multiplierBadge');
+  const multiplierCountEl = document.getElementById('multiplierCount');
+  const comboDisplayEl = document.getElementById('comboDisplay');
+  const comboValueEl = document.getElementById('comboValue');
+  const powerupCountEl = document.getElementById('powerupCount');
+  const visualizerEl = document.getElementById('visualizer');
+  
+  // Performance Monitor Elements
+  const fpsEl = document.getElementById('fps');
+  const particleCountEl = document.getElementById('particleCount');
+  const poolInfoEl = document.getElementById('poolInfo');
+  
+  const COLS=20, ROWS=20, CELL=cv.width/COLS;
+  const WORLDS = [
+    {name:'Cyberpunk',color:'#0ff',palette:['#0ff','#ff00ff','#00ff00']},
+    {name:'Neon Hell',color:'#ff0000',palette:['#ff6600','#ff0066','#660000']},
+    {name:'Matrix',color:'#00ff00',palette:['#00ff00','#00ff88','#88ff00']},
+    {name:'Golden Path',color:'#ffd700',palette:['#ffd700','#ffaa00','#ff8800']},
+    {name:'Prism Break',color:'#ff00ff',palette:['rainbow','#ff00ff','#00ffff']}
+  ];
+  
+  let worldIndex=0, score=0, best=parseInt(localStorage.getItem('neonSnakeBest')||'0');
+  let snake=[], dir={x:1,y:0}, nextDir={x:1,y:0}, apple=null;
+  let transitioning=false, transitionStart=0, transitionText='';
+  let walls=[], lastWallScore=-1, powerUps=[], powerupLevel=10, powerupCycle=1;
+  let logicTimer=null, lastTime=0;
+  
+  // Estados
+  let goldenActive=false, goldenEnd=0, haloIntensity=0;
+  let speedActive=false, speedEnd=0;
+  let ghostActive=false, ghostEnd=0;
+  let multiplierActive=false, multiplierEnd=0, multiplierApplies=0;
+  let shrinkUsed=false;
+  
+  // 🎯 OBJECT POOLING SYSTEM
+  class ObjectPool {
+    constructor(createFn, resetFn, maxSize = 100) {
+      this.createFn = createFn;
+      this.resetFn = resetFn;
+      this.maxSize = maxSize;
+      this.pool = [];
+      this.active = [];
+      this.stats = { created: 0, reused: 0, returned: 0 };
+      
+      // Pre-populate pool
+      for(let i = 0; i < Math.min(10, maxSize); i++) {
+        this.pool.push(this.createFn());
+        this.stats.created++;
+      }
+    }
+    
+    get() {
+      let obj;
+      if(this.pool.length > 0) {
+        obj = this.pool.pop();
+        this.stats.reused++;
+      } else if(this.active.length < this.maxSize) {
+        obj = this.createFn();
+        this.stats.created++;
+      } else {
+        return null; // Pool exhausted
+      }
+      this.active.push(obj);
+      return obj;
+    }
+    
+    release(obj) {
+      const idx = this.active.indexOf(obj);
+      if(idx !== -1) {
+        this.active.splice(idx, 1);
+        this.resetFn(obj);
+        this.pool.push(obj);
+        this.stats.returned++;
+      }
+    }
+    
+    releaseAll() {
+      while(this.active.length > 0) {
+        const obj = this.active.pop();
+        this.resetFn(obj);
+        this.pool.push(obj);
+        this.stats.returned++;
+      }
+    }
+    
+    getStats() {
+      return {
+        active: this.active.length,
+        pooled: this.pool.length,
+        total: this.active.length + this.pool.length,
+        ...this.stats
+      };
+    }
+  }
+  
+  // 🎯 PARTICLE POOL
+  const particlePool = new ObjectPool(
+    () => ({ x:0, y:0, vx:0, vy:0, life:0, color:'', active:false }),
+    (p) => { p.active = false; p.life = 0; },
+    200 // Max particles
+  );
+  
+  // 🎯 TEXT POOL
+  const textPool = new ObjectPool(
+    () => ({ text:'', x:0, y:0, vy:0, life:0, color:'', active:false }),
+    (t) => { t.active = false; t.life = 0; },
+    50 // Max floating texts
+  );
+  
+  // 🎯 WAVE POOL (Ghost Mode)
+  const wavePool = new ObjectPool(
+    () => ({ x:0, y:0, radius:0, alpha:0, color:'', active:false }),
+    (w) => { w.active = false; w.alpha = 0; },
+    20 // Max waves
+  );
+  
+  // 🎯 TRAIL POOL (Speed Mode)
+  const trailPool = new ObjectPool(
+    () => ({ segments:[], alpha:0, color:'', active:false }),
+    (t) => { t.active = false; t.alpha = 0; t.segments = []; },
+    10 // Max trails
+  );
+  
+  // 🎯 COIN POOL (Multiplier)
+  const coinPool = new ObjectPool(
+    () => ({ x:0, y:0, vy:0, life:0, active:false }),
+    (c) => { c.active = false; c.life = 0; },
+    20 // Max coins
+  );
+  
+  // Arrays para objetos ativos
+  let activeParticles = [];
+  let activeTexts = [];
+  let activeWaves = [];
+  let activeTrails = [];
+  let activeCoins = [];
+  
+  // Performance tracking
+  let frameCount = 0;
+  let lastFpsTime = performance.now();
+  let currentFps = 60;
+  
+  // AUDIO
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let actx=null, masterGain=null, musicGain=null, effectGain=null;
+  let beatInterval=null, beatPhase=0, loopRunning=false;
+  const TEMPO=128, BEAT_MS=60000/TEMPO/4;
+  const beatsPerWorld = 32;
+  let beatCount = 0, measureCount = 0;
+  
+  // Visualizer
+  let analyser = null;
+  const visBars = [];
+  
+  function setupAudio(){
+    if(actx) return;
+    actx = new AudioCtx();
+    masterGain = actx.createGain();
+    musicGain = actx.createGain();
+    effectGain = actx.createGain();
+    
+    analyser = actx.createAnalyser();
+    analyser.fftSize = 256;
+    
+    masterGain.gain.value = 0.15;
+    musicGain.gain.value = 0.5;
+    effectGain.gain.value = 0.8;
+    
+    musicGain.connect(analyser);
+    analyser.connect(masterGain);
+    effectGain.connect(masterGain);
+    masterGain.connect(actx.destination);
+    
+    // Criar barras do visualizer
+    for(let i = 0; i < 32; i++){
+      const bar = document.createElement('div');
+      bar.className = 'vis-bar';
+      bar.style.width = '90%';
+      visualizerEl.appendChild(bar);
+      visBars.push(bar);
+    }
+    
+    loopRunning = true;
+    playMusicLoop();
+  }
+  
+  function playBeat(){
+    beatPhase = 1;
+    beatEl.classList.add('pulse');
+    setTimeout(()=>beatEl.classList.remove('pulse'), 100);
+    
+    // Visualizer update
+    if(analyser && visBars.length > 0){
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+      
+      const barCount = visBars.length;
+      const step = Math.floor(bufferLength / barCount);
+      
+      for(let i = 0; i < barCount; i++){
+        const value = dataArray[i * step] / 255;
+        visBars[i].style.width = `${Math.max(10, value * 90)}%`;
+        if(goldenActive && value > 0.5){
+          visBars[i].classList.add('golden');
+        } else {
+          visBars[i].classList.remove('golden');
+        }
+      }
+    }
+    
+    // Golden Mode special beat
+    if(goldenActive){
+      cv.style.transform = `scale(${1 + beatPhase*0.02})`;
+      setTimeout(()=>{ cv.style.transform = 'scale(1)'; }, 100);
+    }
+  }
+  
+  function playMusicLoop(){
+    if(!loopRunning || !actx) return;
+    
+    const now = actx.currentTime;
+    const W = WORLDS[worldIndex];
+    const notes = [
+      W.palette[0]==='rainbow' ? Math.floor(200+Math.random()*600) : 261.63,
+      W.palette[1]==='#ff00ff' ? 329.63 : 293.66, 
+      349.23, 392.00
+    ];
+    
+    const patterns = [
+      [0,0,1,2, 0,2,1,3, 0,0,2,2, 1,1,3,3],
+      [0,2,0,2, 1,3,1,3, 0,1,2,3, 3,2,1,0],
+      [0,-1,0,1, 2,-1,2,3, 0,-1,1,-1, 2,-1,3,-1],
+      [0,1,0,1, 2,3,2,3, 1,0,3,2, 0,2,1,3]
+    ];
+    const pattern = patterns[measureCount % 4];
+    
+    for(let i = 0; i < pattern.length; i++){
+      if(pattern[i] >= 0){
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        const filter = actx.createBiquadFilter();
+        
+        osc.type = goldenActive ? 'square' : 'sawtooth';
+        osc.frequency.value = notes[pattern[i]] * (goldenActive ? 1.5 : 1);
+        
+        filter.type = 'lowpass';
+        filter.frequency.value = goldenActive ? 3000 : 1500;
+        filter.Q.value = goldenActive ? 10 : 5;
+        
+        const t = now + (i * BEAT_MS/1000);
+        const dur = 0.05;
+        
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.1, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(musicGain);
+        
+        osc.start(t);
+        osc.stop(t + dur + 0.1);
+      }
+    }
+    
+    beatCount += pattern.length;
+    if(beatCount >= beatsPerWorld){
+      beatCount = 0;
+      measureCount++;
+    }
+    
+    beatInterval = setTimeout(()=>{
+      playBeat();
+      playMusicLoop();
+    }, pattern.length * BEAT_MS);
+  }
+  
+  function playSound(type){
+    if(!actx) return;
+    const now = actx.currentTime;
+    
+    const configs = {
+      eat: {freq:[800,1200], dur:0.05, wave:'square'},
+      powerup: {freq:[400,600,800], dur:0.15, wave:'sawtooth'},
+      golden: {freq:[800,1200,1600,2000], dur:0.3, wave:'square'},
+      death: {freq:[400,200,100], dur:0.5, wave:'sawtooth'},
+      speed: {freq:[400,600,800], dur:0.1, wave:'sawtooth'},
+      ghost: {freq:[800,600,400], dur:0.2, wave:'sine'},
+      multiplier: {freq:[523,659,784], dur:0.15, wave:'square'},
+      shrink: {freq:[400,200], dur:0.1, wave:'sawtooth'}
+    };
+    
+    const cfg = configs[type];
+    if(!cfg) return;
+    
+    cfg.freq.forEach((f,i)=>{
+      const osc = actx.createOscillator();
+      const gain = actx.createGain();
+      osc.type = cfg.wave;
+      osc.frequency.value = f;
+      
+      const t = now + i*0.05;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.2, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + cfg.dur);
+      
+      osc.connect(gain);
+      gain.connect(effectGain);
+      osc.start(t);
+      osc.stop(t + cfg.dur + 0.1);
+    });
+  }
+  
+  // SPAWN FUNCTIONS (Using Pools)
+  function spawnParticles(x, y, count, color) {
+    for(let i = 0; i < count; i++) {
+      const p = particlePool.get();
+      if(!p) break; // Pool exhausted
+      
+      p.x = x * CELL + CELL/2;
+      p.y = y * CELL + CELL/2;
+      p.vx = (Math.random() * 16 - 8);
+      p.vy = (Math.random() * -10 - 2);
+      p.life = 1;
+      p.color = color;
+      p.active = true;
+      
+      activeParticles.push(p);
+    }
+  }
+  
+  function addFloatingText(text, x, y, color) {
+    const t = textPool.get();
+    if(!t) return; // Pool exhausted
+    
+    t.text = text;
+    t.x = x * CELL + CELL/2;
+    t.y = y * CELL + CELL/2;
+    t.vy = -1.5;
+    t.life = 1;
+    t.color = color;
+    t.active = true;
+    
+    activeTexts.push(t);
+  }
+  
+  function createWave(x, y) {
+    const w = wavePool.get();
+    if(!w) return;
+    
+    w.x = x;
+    w.y = y;
+    w.radius = 0;
+    w.alpha = 0.5;
+    w.color = '#66ddff';
+    w.active = true;
+    
+    activeWaves.push(w);
+  }
+  
+  function createTrail(segments) {
+    const t = trailPool.get();
+    if(!t) return;
+    
+    t.segments = [...segments]; // Copy segments
+    t.alpha = 0.6;
+    t.color = '#ff6666';
+    t.active = true;
+    
+    activeTrails.push(t);
+  }
+  
+  function createCoins(x, y, count) {
+    for(let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const c = coinPool.get();
+        if(!c) return;
+        
+        c.x = x * CELL + CELL/2;
+        c.y = y * CELL + CELL/2;
+        c.vy = -2;
+        c.life = 1;
+        c.active = true;
+        
+        activeCoins.push(c);
+      }, i * 100);
+    }
+  }
+  
+  // UPDATE FUNCTIONS (Batch processing)
+  function updateParticles() {
+    for(let i = activeParticles.length - 1; i >= 0; i--) {
+      const p = activeParticles[i];
+      
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.3;
+      p.life -= 0.03;
+      
+      if(p.life <= 0) {
+        activeParticles.splice(i, 1);
+        particlePool.release(p);
+      }
+    }
+  }
+  
+  function updateFloatingTexts() {
+    for(let i = activeTexts.length - 1; i >= 0; i--) {
+      const t = activeTexts[i];
+      
+      t.y += t.vy;
+      t.life -= 0.015;
+      
+      if(t.life <= 0) {
+        activeTexts.splice(i, 1);
+        textPool.release(t);
+      }
+    }
+  }
+  
+  function updateWaves() {
+    for(let i = activeWaves.length - 1; i >= 0; i--) {
+      const w = activeWaves[i];
+      
+      w.radius += 3;
+      w.alpha -= 0.02;
+      
+      if(w.alpha <= 0) {
+        activeWaves.splice(i, 1);
+        wavePool.release(w);
+      }
+    }
+  }
+  
+  function updateTrails() {
+    for(let i = activeTrails.length - 1; i >= 0; i--) {
+      const t = activeTrails[i];
+      
+      t.alpha -= 0.05;
+      
+      if(t.alpha <= 0) {
+        activeTrails.splice(i, 1);
+        trailPool.release(t);
+      }
+    }
+  }
+  
+  function updateCoins() {
+    for(let i = activeCoins.length - 1; i >= 0; i--) {
+      const c = activeCoins[i];
+      
+      c.y += c.vy;
+      c.vy *= 0.95;
+      c.life -= 0.02;
+      
+      if(c.life <= 0) {
+        activeCoins.splice(i, 1);
+        coinPool.release(c);
+      }
+    }
+  }
+  
+  // RENDER FUNCTIONS (Batch rendering)
+  function renderParticles() {
+    if(activeParticles.length === 0) return;
+    
+    ctx.save();
+    activeParticles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, 3, 3);
+    });
+    ctx.restore();
+  }
+  
+  function renderFloatingTexts() {
+    if(activeTexts.length === 0) return;
+    
+    ctx.save();
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    
+    activeTexts.forEach(t => {
+      ctx.globalAlpha = Math.max(0, t.life);
+      ctx.fillStyle = t.color;
+      ctx.shadowColor = t.color;
+      ctx.shadowBlur = 8;
+      ctx.fillText(t.text, t.x, t.y);
+    });
+    ctx.restore();
+  }
+  
+  function renderWaves() {
+    if(activeWaves.length === 0) return;
+    
+    ctx.save();
+    activeWaves.forEach(w => {
+      ctx.strokeStyle = w.color;
+      ctx.globalAlpha = Math.max(0, w.alpha);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+  
+  function renderTrails() {
+    if(activeTrails.length === 0) return;
+    
+    ctx.save();
+    activeTrails.forEach(t => {
+      ctx.globalAlpha = Math.max(0, t.alpha);
+      ctx.fillStyle = t.color;
+      ctx.shadowColor = t.color;
+      ctx.shadowBlur = 10;
+      
+      t.segments.forEach((seg, i) => {
+        const alpha = t.alpha * ((10 - i) / 10);
+        ctx.globalAlpha = Math.max(0, alpha);
+        drawCell(seg.x, seg.y, 4);
+      });
+    });
+    ctx.restore();
+  }
+  
+  function renderCoins() {
+    if(activeCoins.length === 0) return;
+    
+    ctx.save();
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    
+    activeCoins.forEach(c => {
+      ctx.globalAlpha = Math.max(0, c.life);
+      ctx.fillText('💰', c.x, c.y);
+    });
+    ctx.restore();
+  }
+  
+  // Power-up Types
+  const POWERUP_TYPES = {
+    golden: {color:'#ffd700', duration:10000},
+    speed: {color:'#ff3333', duration:7000},
+    ghost: {color:'#66ddff', duration:8000},
+    multiplier: {color:'#33ff66', duration:5},
+    shrink: {color:'#cc66ff', duration:0}
+  };
+  
+  function spawnPowerUp(){
+    if(powerUps.length >= 3) return;
+    
+    const types = ['golden','speed','ghost','multiplier'];
+    if(!shrinkUsed && snake.length > 5 && Math.random() < 0.2) types.push('shrink');
+    
+    const type = types[Math.floor(Math.random() * types.length)];
+    let pos;
+    let tries = 0;
+    
+    do {
+      pos = {x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS)};
+      tries++;
+    } while(tries < 100 && (
+      snake.some(p => p.x === pos.x && p.y === pos.y) ||
+      (apple && apple.x === pos.x && apple.y === pos.y) ||
+      walls.some(w => w.x === pos.x && w.y === pos.y) ||
+      powerUps.some(p => p.pos.x === pos.x && p.pos.y === pos.y)
+    ));
+    
+    if(tries < 100) {
+      powerUps.push({type, pos});
+    }
+  }
+  
+  function activatePowerUp(type, pos){
+    const now = Date.now();
+    playSound(type);
+    
+    switch(type){
+      case 'golden':
+        goldenActive = true;
+        goldenEnd = now + POWERUP_TYPES.golden.duration;
+        haloIntensity = 1;
+        goldenTimerEl.style.display = 'block';
+        cv.classList.add('golden-active');
+        
+        flashEl.className = 'flash-overlay white';
+        setTimeout(()=>{ flashEl.className = 'flash-overlay violet'; }, 100);
+        setTimeout(()=>{ flashEl.className = 'flash-overlay gold'; }, 300);
+        setTimeout(()=>{ flashEl.className = 'flash-overlay'; }, 500);
+        break;
+        
+      case 'speed':
+        speedActive = true;
+        speedEnd = now + POWERUP_TYPES.speed.duration;
+        speedTimerEl.style.display = 'block';
+        
+        // Create trail effect
+        if(snake.length >= 10) {
+          createTrail(snake.slice(-10));
+        }
+        
+        flashEl.className = 'flash-overlay red';
+        setTimeout(()=>{ flashEl.className = 'flash-overlay'; }, 200);
+        break;
+        
+      case 'ghost':
+        ghostActive = true;
+        ghostEnd = now + POWERUP_TYPES.ghost.duration;
+        ghostTimerEl.style.display = 'block';
+        
+        // Create wave effect
+        const head = snake[0];
+        if(head) createWave(head.x * CELL + CELL/2, head.y * CELL + CELL/2);
+        
+        flashEl.className = 'flash-overlay cyan';
+        setTimeout(()=>{ flashEl.className = 'flash-overlay'; }, 200);
+        break;
+        
+      case 'multiplier':
+        multiplierActive = true;
+        multiplierEnd = 0;
+        multiplierApplies = 5;
+        multiplierBadgeEl.style.display = 'block';
+        multiplierCountEl.textContent = multiplierApplies;
+        
+        // Create coins effect
+        createCoins(pos.x, pos.y, 8);
+        
+        flashEl.className = 'flash-overlay green';
+        setTimeout(()=>{ flashEl.className = 'flash-overlay'; }, 200);
+        break;
+        
+      case 'shrink':
+        if(snake.length > 3){
+          const removed = Math.floor(snake.length / 2);
+          snake.splice(-removed, removed);
+          shrinkUsed = true;
+          
+          // Triple explosion effect
+          spawnParticles(pos.x, pos.y, 40, '#cc66ff');
+          spawnParticles(pos.x, pos.y, 20, '#ff66cc');
+          spawnParticles(pos.x, pos.y, 10, '#ffffff');
+          
+          addFloatingText(`-${removed}`, pos.x, pos.y, '#cc66ff');
+        }
+        
+        flashEl.className = 'flash-overlay purple';
+        setTimeout(()=>{ flashEl.className = 'flash-overlay'; }, 200);
+        break;
+    }
+  }
+  
+  function updatePowerUpTimers(){
+    const now = Date.now();
+    
+    if(goldenActive){
+      if(now >= goldenEnd){
+        goldenActive = false;
+        haloIntensity = 0;
+        goldenTimerEl.style.display = 'none';
+        cv.classList.remove('golden-active');
+      } else {
+        goldenTimeEl.textContent = Math.ceil((goldenEnd - now) / 1000);
+        haloIntensity = Math.max(0, haloIntensity - 0.01);
+      }
+    }
+    
+    if(speedActive){
+      if(now >= speedEnd){
+        speedActive = false;
+        speedTimerEl.style.display = 'none';
+      } else {
+        speedTimeEl.textContent = Math.ceil((speedEnd - now) / 1000);
+        
+        // Continuous trail effect
+        if(Math.random() < 0.3 && snake.length >= 10) {
+          createTrail(snake.slice(-10));
+        }
+      }
+    }
+    
+    if(ghostActive){
+      if(now >= ghostEnd){
+        ghostActive = false;
+        ghostTimerEl.style.display = 'none';
+      } else {
+        ghostTimeEl.textContent = Math.ceil((ghostEnd - now) / 1000);
+        
+        // Periodic wave effect
+        if(Math.random() < 0.1 && snake[0]) {
+          const head = snake[0];
+          createWave(head.x * CELL + CELL/2, head.y * CELL + CELL/2);
+        }
+      }
+    }
+    
+    if(multiplierActive && multiplierApplies <= 0){
+      multiplierActive = false;
+      multiplierBadgeEl.style.display = 'none';
+    }
+  }
+  
+  // GAME LOGIC
+  function startGame(){
+    score = 0; scoreEl.textContent = '0';
+    worldIndex = 0;
+    powerupLevel = 10; powerupCycle = 1;
+    snake = [{x:10, y:10}];
+    dir = {x:1, y:0}; nextDir = {x:1, y:0};
+    walls = []; powerUps = [];
+    goldenActive = speedActive = ghostActive = multiplierActive = false;
+    shrinkUsed = false;
+    
+    // Clear all pools
+    particlePool.releaseAll();
+    textPool.releaseAll();
+    wavePool.releaseAll();
+    trailPool.releaseAll();
+    coinPool.releaseAll();
+    
+    activeParticles = [];
+    activeTexts = [];
+    activeWaves = [];
+    activeTrails = [];
+    activeCoins = [];
+    
+    goldenTimerEl.style.display = 'none';
+    speedTimerEl.style.display = 'none';
+    ghostTimerEl.style.display = 'none';
+    multiplierBadgeEl.style.display = 'none';
+    comboDisplayEl.style.display = 'none';
+    cv.classList.remove('golden-active');
+    
+    spawnApple();
+    updateWorld();
+    msgEl.textContent = 'GO!';
+    
+    if(logicTimer) clearInterval(logicTimer);
+    logicTimer = setInterval(tick, speedActive ? 60 : 120);
+  }
+  
+  function tick(){
+    if(transitioning) return;
+    
+    const newDir = nextDir;
+    if((dir.x === -newDir.x && dir.y === -newDir.y) && snake.length > 1) return;
+    
+    dir = newDir;
+    const head = {...snake[0]};
+    head.x += dir.x; head.y += dir.y;
+    
+    if(head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS){
+      if(!ghostActive){
+        gameOver();
+        return;
+      }
+    }
+    
+    const selfCollision = snake.some(s => s.x === head.x && s.y === head.y);
+    if(selfCollision && !ghostActive){
+      gameOver();
+      return;
+    }
+    
+    const wallCollision = walls.some(w => w.x === head.x && w.y === head.y);
+    if(wallCollision && !ghostActive){
+      gameOver();
+      return;
+    }
+    
+    snake.unshift(head);
+    
+    if(apple && head.x === apple.x && head.y === apple.y){
+      const basePoints = goldenActive ? 50 : 10;
+      const points = multiplierActive ? basePoints * 2 : basePoints;
+      score += points;
+      scoreEl.textContent = score;
+      
+      if(multiplierActive){
+        multiplierApplies--;
+        multiplierCountEl.textContent = multiplierApplies;
+        addFloatingText(`+${points}`, head.x, head.y, '#33ff66');
+      }
+      
+      spawnParticles(apple.x, apple.y, 15, getSnakeColor());
+      playSound('eat');
+      spawnApple();
+      
+      if(score > 0 && score % 50 === 0){
+        transitioning = true;
+        transitionStart = Date.now();
+        worldIndex = (worldIndex + 1) % WORLDS.length;
+        const W = WORLDS[worldIndex];
+        transitionText = `WORLD ${worldIndex+1}: ${W.name}`;
+        setTimeout(()=>{ transitioning = false; updateWorld(); }, 1000);
+      }
+      
+      if(score > 0 && score % 100 === 0){
+        spawnWalls();
+      }
+      
+      if(powerupLevel > 0){
+        powerupLevel--;
+        powerupCountEl.textContent = `Lvl ${powerupLevel}`;
+        if(powerupLevel === 0){
+          spawnPowerUp();
+          powerupLevel = 10;
+          powerupCycle++;
+        }
+      }
+    } else {
+      snake.pop();
+    }
+    
+    const pIdx = powerUps.findIndex(p => 
+      p.pos.x === head.x && p.pos.y === head.y
+    );
+    if(pIdx !== -1){
+      const pu = powerUps[pIdx];
+      activatePowerUp(pu.type, pu.pos);
+      powerUps.splice(pIdx, 1);
+      spawnParticles(pu.pos.x, pu.pos.y, 20, POWERUP_TYPES[pu.type].color);
+    }
+    
+    if(logicTimer){
+      clearInterval(logicTimer);
+      logicTimer = setInterval(tick, speedActive ? 60 : 120);
+    }
+  }
+  
+  function spawnApple(){
+    let tries = 0;
+    do {
+      apple = {x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS)};
+      tries++;
+    } while(tries < 100 && (
+      snake.some(s => s.x === apple.x && s.y === apple.y) ||
+      walls.some(w => w.x === apple.x && w.y === apple.y) ||
+      powerUps.some(p => p.pos.x === apple.x && p.pos.y === apple.y)
+    ));
+    
+    if(tries >= 100) apple = {x: 10, y: 10};
+  }
+  
+  function spawnWalls(){
+    const count = 3 + Math.floor(score / 200);
+    walls = [];
+    for(let i = 0; i < count; i++){
+      let wall, tries = 0;
+      do {
+        wall = {x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS)};
+        tries++;
+      } while(tries < 50 && (
+        snake.some(s => s.x === wall.x && s.y === wall.y) ||
+        (apple && apple.x === wall.x && apple.y === wall.y) ||
+        walls.some(w => w.x === wall.x && w.y === wall.y)
+      ));
+      
+      if(tries < 50) walls.push(wall);
+    }
+    lastWallScore = score;
+  }
+  
+  function updateWorld(){
+    const W = WORLDS[worldIndex];
+    worldEl.textContent = `${worldIndex+1} • ${W.name}`;
+    cv.style.borderColor = W.color;
+  }
+  
+  function gameOver(){
+    playSound('death');
+    if(score > best){
+      best = score;
+      bestEl.textContent = best;
+      localStorage.setItem('neonSnakeBest', best);
+      msgEl.textContent = 'NEW RECORD!';
+    } else {
+      msgEl.textContent = 'GAME OVER';
+    }
+    
+    clearInterval(logicTimer);
+    logicTimer = null;
+    
+    // Fade out effect
+    cv.style.transition = 'opacity 0.5s, transform 0.5s';
+    cv.style.opacity = '0';
+    cv.style.transform = 'scale(0.95)';
+    
+    setTimeout(() => {
+      cv.style.opacity = '1';
+      cv.style.transform = 'scale(1)';
+      startGame();
+    }, 1000);
+  }
+  
+  const validCell = (x,y) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
+  const isFiniteNum = n => typeof n === 'number' && isFinite(n);
+  
+  // RENDERING
+  function animate(time){
+    requestAnimationFrame(animate);
+    
+    // Update FPS
+    frameCount++;
+    if(time - lastFpsTime >= 1000){
+      currentFps = frameCount;
+      fpsEl.textContent = currentFps;
+      frameCount = 0;
+      lastFpsTime = time;
+    }
+    
+    // Update performance stats
+    const poolStats = particlePool.getStats();
+    particleCountEl.textContent = activeParticles.length + activeTexts.length + activeWaves.length + activeTrails.length + activeCoins.length;
+    poolInfoEl.textContent = `${poolStats.active}/${poolStats.total}`;
+    
+    const deltaTime = time - lastTime;
+    lastTime = time;
+    if(deltaTime > 100) return;
+    
+    beatPhase *= 0.88;
+    updatePowerUpTimers();
+    
+    // Update all effects
+    updateParticles();
+    updateFloatingTexts();
+    updateWaves();
+    updateTrails();
+    updateCoins();
+    
+    // Clear canvas
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    
+    const W = WORLDS[worldIndex];
+    const now = performance.now();
+    
+    // Grid
+    ctx.strokeStyle = `${W.color}33`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let i = 1; i < COLS; i++){
+      const x = i * CELL + (goldenActive ? Math.sin(now/100 + i)*3 : 0);
+      ctx.moveTo(x + 0.5, 0); 
+      ctx.lineTo(x + 0.5, cv.height);
+    }
+    for(let j = 1; j < ROWS; j++){
+      const y = j * CELL + (goldenActive ? Math.sin(now/120 + j)*3 : 0);
+      ctx.moveTo(0, y + 0.5); 
+      ctx.lineTo(cv.width, y + 0.5);
+    }
+    ctx.stroke();
+    
+    // Walls
+    ctx.save();
+    ctx.fillStyle = '#ff00ff';
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 10;
+    for(const wall of walls){
+      if(validCell(wall.x, wall.y)){
+        drawCell(wall.x, wall.y, 3);
+      }
+    }
+    ctx.restore();
+    
+    // Apple
+    if(apple && validCell(apple.x, apple.y)){
+      const pulseFreq = 3;
+      const appleGlow = Math.sin(Date.now() / (200 / pulseFreq)) * 0.5 + 0.5;
+      const snakeColor = getSnakeColor();
+      ctx.save();
+      ctx.shadowColor = snakeColor;
+      ctx.shadowBlur = 20 + appleGlow * 20;
+      ctx.globalAlpha = 0.85 + appleGlow * 0.15;
+      safeDrawOrb(apple.x, apple.y, snakeColor);
+      ctx.restore();
+    }
+    
+    // Power-ups
+    for(const p of powerUps){
+      if(validCell(p.pos.x, p.pos.y)){
+        const color = POWERUP_TYPES[p.type].color;
+        safeDrawOrb(p.pos.x, p.pos.y, color);
+      }
+    }
+    
+    // Render all effects (batch rendering)
+    renderTrails();
+    renderWaves();
+    renderParticles();
+    renderFloatingTexts();
+    renderCoins();
+    
+    // Snake
+    ctx.save();
+    snake.forEach((p, i) => {
+      let fill;
+      
+      if(W.palette[0] === 'rainbow'){
+        const hue = ((now/100) + i*6) % 360;
+        fill = goldenActive ? 'hsl(50,100%,65%)' 
+             : speedActive ? '#ff6666'
+             : `hsl(${hue},100%,60%)`;
+      } else {
+        fill = goldenActive ? 'hsl(50,100%,65%)' 
+             : speedActive ? '#ff6666'
+             : W.palette[0];
+      }
+      
+      ctx.fillStyle = fill;
+      ctx.shadowColor = goldenActive ? '#ffd700' : speedActive ? '#ff3333' : W.color;
+      ctx.shadowBlur = goldenActive ? 20 : speedActive ? 15 : 8;
+      ctx.globalAlpha = ghostActive ? 0.5 : 1.0;
+      drawCell(p.x, p.y, 4);
+    });
+    ctx.restore();
+    
+    // Canvas glow
+    const glow = 30 + (beatPhase * 18) + score / 8;
+    cv.style.boxShadow = `0 0 ${glow}px ${W.color}AA, inset 0 0 ${Math.max(20, glow/2)}px ${W.color}33`;
+    
+    // Golden Halo
+    if(haloIntensity > 0){
+      const cxm = cv.width / 2;
+      const cym = cv.height / 2;
+      const maxR = Math.hypot(cxm, cym);
+      const freq = 2.0;
+      const s = (Math.sin(Date.now() / 1000 * Math.PI * 2 * freq) + 1) / 2;
+      const alpha = haloIntensity * 0.35 * s;
+      const r = maxR * (0.7 + 0.15 * s);
+      
+      if(isFiniteNum(cxm) && isFiniteNum(cym) && isFiniteNum(r)){
+        const grd = ctx.createRadialGradient(cxm, cym, Math.max(0.1, r*0.2), cxm, cym, Math.max(0.2, r));
+        grd.addColorStop(0, `rgba(255,215,0, ${alpha})`);
+        grd.addColorStop(0.5, `rgba(255,140,0, ${alpha*0.5})`);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = grd; 
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+    
+    // Transition
+    if(transitioning){
+      const t = (now - transitionStart);
+      const a = Math.min(1, t / 200);
+      if(t < 150){
+        ctx.fillStyle = `rgba(255,255,255, ${1 - t/150})`;
+        ctx.fillRect(0, 0, cv.width, cv.height);
+      }
+      ctx.save();
+      ctx.fillStyle = `rgba(255,255,255, ${a})`;
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center'; 
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = W.color; 
+      ctx.shadowBlur = 18;
+      ctx.fillText(transitionText, cv.width/2, cv.height/2);
+      ctx.restore();
+    }
+  }
+  
+  function drawCell(x, y, r){
+    const px = x * CELL;
+    const py = y * CELL;
+    ctx.beginPath();
+    ctx.moveTo(px + r, py);
+    ctx.arcTo(px + CELL, py, px + CELL, py + CELL, r);
+    ctx.arcTo(px + CELL, py + CELL, px, py + CELL, r);
+    ctx.arcTo(px, py + CELL, px, py, r);
+    ctx.arcTo(px, py, px + CELL, py, r);
+    ctx.closePath();
+    ctx.fill();
+  }
+  
+  function safeDrawOrb(x, y, color){
+    const px = x * CELL + CELL/2;
+    const py = y * CELL + CELL/2;
+    if(!isFiniteNum(px) || !isFiniteNum(py)) return false;
+    
+    try{
+      const r0 = 2, r1 = 8;
+      const g = ctx.createRadialGradient(px, py, r0, px, py, r1);
+      g.addColorStop(0, '#fff');
+      g.addColorStop(0.3, color);
+      g.addColorStop(1, '#0000');
+      ctx.fillStyle = g; 
+      ctx.beginPath(); 
+      ctx.arc(px, py, 8, 0, Math.PI*2); 
+      ctx.fill();
+      return true;
+    } catch(_) {
+      ctx.fillStyle = color; 
+      ctx.beginPath(); 
+      ctx.arc(px, py, 6, 0, Math.PI*2); 
+      ctx.fill();
+      return false;
+    }
+  }
+  
+  function getSnakeColor(){
+    const W = WORLDS[worldIndex];
+    const now = performance.now();
+    if(goldenActive) return 'hsl(50,100%,65%)';
+    if(speedActive) return '#ff6666';
+    if(W.palette[0] === 'rainbow') return `hsl(${(now/100)%360},100%,60%)`;
+    return W.palette[0];
+  }
+  
+  // CONTROLS
+  startBtn.addEventListener('click', () => {
+    if(!loopRunning) setupAudio();
+    if(!logicTimer) startGame();
+  });
+  
+  document.querySelectorAll('.dpad-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.dataset.dir;
+      if(d === 'up') nextDir = {x:0, y:-1};
+      if(d === 'down') nextDir = {x:0, y:1};
+      if(d === 'left') nextDir = {x:-1, y:0};
+      if(d === 'right') nextDir = {x:1, y:0};
+    });
+  });
+  
+  window.addEventListener('keydown', e => {
+    if(e.code === 'Space'){
+      if(!loopRunning) setupAudio();
+      if(!logicTimer) startGame();
+    }
+    const dirs = {
+      w:{x:0, y:-1}, a:{x:-1, y:0}, s:{x:0, y:1}, d:{x:1, y:0},
+      ArrowUp:{x:0, y:-1}, ArrowDown:{x:0, y:1},
+      ArrowLeft:{x:-1, y:0}, ArrowRight:{x:1, y:0}
+    };
+    if(dirs[e.key]) nextDir = dirs[e.key];
+  });
+  
+  bestEl.textContent = best;
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

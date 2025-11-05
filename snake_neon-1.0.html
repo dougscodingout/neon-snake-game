@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Neon Snake — Tron Edition</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body{
+    height:100%;margin:0;
+    background:radial-gradient(circle at 50% 20%,#0a0022,#000 80%);
+    font-family:sans-serif;
+    color:#7ff;
+    overflow:hidden;
+  }
+  .wrap{display:grid;place-items:center;height:100%;}
+  canvas{
+    background:radial-gradient(circle at 40% 40%,#050015,#000);
+    border-radius:22px;
+    box-shadow:
+      0 0 30px #0ff4,
+      inset 0 0 40px #00ffee22,
+      0 0 10px #00ffff33;
+  }
+  .hud{display:flex;gap:16px;margin-bottom:12px;justify-content:center;text-shadow:0 0 8px #0ff8;}
+  .badge{
+    background:rgba(0,0,0,.4);
+    border:1px solid #0ff6;
+    border-radius:10px;
+    padding:8px 14px;
+    box-shadow:0 0 12px #0ff4,inset 0 0 6px #00fffa33;
+  }
+  .note{text-align:center;font-size:14px;opacity:.85;color:#f8f;}
+  .key{
+    display:inline-block;padding:2px 7px;margin:0 2px;
+    border-radius:6px;background:#111;border:1px solid #0ff6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="hud">
+      <div class="badge">Score: <span id="score">0</span></div>
+      <div class="badge">Best: <span id="best">0</span></div>
+      <div class="badge" id="msg">Press <b>Space</b> to start</div>
+    </div>
+    <canvas id="cv" width="720" height="720"></canvas>
+    <div class="note">
+      Move with <span class="key">WASD</span> or <span class="key">Arrows</span> • Power-up = +5 pts & slow-mo • Walls are deadly
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const CELL=24, COLS=30, ROWS=30;
+  const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+  const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),msg=document.getElementById('msg');
+  const DIRS={
+    w:{x:0,y:-1},a:{x:-1,y:0},s:{x:0,y:1},d:{x:1,y:0},
+    ArrowUp:{x:0,y:-1},ArrowLeft:{x:-1,y:0},ArrowDown:{x:0,y:1},ArrowRight:{x:1,y:0}
+  };
+  let snake=[],dir={x:1,y:0},nextDir={x:1,y:0},apple={},power=null,score=0,best=+localStorage.snakeBest||0;
+  let tick=100,timer=null,running=false,slowEnd=0;
+  bestEl.textContent=best;
+
+  function rnd(n){return Math.floor(Math.random()*n);}
+  function same(a,b){return a&&b&&a.x===b.x&&a.y===b.y;}
+  function start(){
+    clearInterval(timer);
+    const cx=Math.floor(COLS/2),cy=Math.floor(ROWS/2);
+    snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+    dir=nextDir={x:1,y:0};
+    placeApple();power=null;
+    score=0;tick=100;running=true;
+    msg.textContent='Playing…';scoreEl.textContent=score;
+    timer=setInterval(step,tick);draw();
+  }
+  function placeApple(){
+    do{apple={x:rnd(COLS),y:rnd(ROWS)};}while(snake.some(p=>same(p,apple)));
+  }
+  function placePower(){
+    do{power={x:rnd(COLS),y:rnd(ROWS)},power.t=Date.now();}while(snake.some(p=>same(p,power))||same(apple,power));
+  }
+  function step(){
+    if(Date.now()>slowEnd && tick!==100){tick=100;clearInterval(timer);timer=setInterval(step,tick);}
+    if(!opposite(nextDir,dir))dir=nextDir;
+    const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+    if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS)return gameOver();
+    if(snake.some(p=>same(p,head)))return gameOver();
+    snake.unshift(head);
+    if(same(head,apple)){score++;placeApple();if(score%6===0&&Math.random()<.6)placePower();}
+    else if(power&&same(head,power)){score+=5;power=null;slowEnd=Date.now()+3000;tick=55;clearInterval(timer);timer=setInterval(step,tick);}
+    else snake.pop();
+    scoreEl.textContent=score;draw();
+  }
+  function opposite(a,b){return a.x+b.x===0&&a.y+b.y===0;}
+  function gameOver(){
+    running=false;clearInterval(timer);
+    msg.textContent='Crashed — Press Space to restart';
+    best=Math.max(best,score);bestEl.textContent=best;localStorage.snakeBest=best;
+    cv.animate([{filter:'brightness(3)'},{filter:'brightness(1)'}],{duration:300});
+  }
+
+  function draw(){
+    ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+    drawGrid();drawWalls();
+    if(power)drawOrb(power.x,power.y,['#fff','#0ff','#f0f'][Math.floor((Date.now()/150)%3)]);
+    drawOrb(apple.x,apple.y,'#f0f');
+    snake.forEach((p,i)=>{
+      const hue=(180+i*6)%360;
+      ctx.fillStyle=`hsl(${hue},100%,60%)`;
+      drawCell(p.x,p.y,5);
+      // glow
+      ctx.shadowColor=`hsl(${hue},100%,60%)`;
+      ctx.shadowBlur=10;ctx.fill();
+      ctx.shadowBlur=0;
+    });
+  }
+
+  function drawWalls(){
+    ctx.strokeStyle='#0ff';ctx.lineWidth=4;ctx.shadowColor='#0ff';ctx.shadowBlur=15;
+    ctx.strokeRect(2,2,cv.width-4,cv.height-4);
+    ctx.shadowBlur=0;
+  }
+  function drawCell(x,y,r){
+    const px=x*CELL,py=y*CELL;
+    ctx.beginPath();ctx.moveTo(px+r,py);
+    ctx.arcTo(px+CELL,py,px+CELL,py+CELL,r);
+    ctx.arcTo(px+CELL,py+CELL,px,py+CELL,r);
+    ctx.arcTo(px,py+CELL,px,py,r);
+    ctx.arcTo(px,py,px+CELL,py,r);ctx.closePath();ctx.fill();
+  }
+  function drawOrb(x,y,color){
+    const px=x*CELL+CELL/2,py=y*CELL+CELL/2;
+    const g=ctx.createRadialGradient(px,py,2,px,py,10);
+    g.addColorStop(0,'#fff');g.addColorStop(.3,color);g.addColorStop(1,'#0000');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,10,0,2*Math.PI);ctx.fill();
+  }
+  function drawGrid(){
+    ctx.strokeStyle='rgba(0,255,255,.06)';
+    ctx.beginPath();
+    for(let i=1;i<COLS;i++){ctx.moveTo(i*CELL+.5,0);ctx.lineTo(i*CELL+.5,cv.height);}
+    for(let j=1;j<ROWS;j++){ctx.moveTo(0,j*CELL+.5);ctx.lineTo(cv.width,j*CELL+.5);}
+    ctx.stroke();
+  }
+  window.addEventListener('keydown',e=>{
+    if(e.code==='Space'){e.preventDefault();if(!running)start();else start();}
+    if(DIRS[e.key]){const c=DIRS[e.key];if(!opposite(c,dir))nextDir=c;}
+  });
+  draw();
+})();
+</script>
+</body>
+</html>
