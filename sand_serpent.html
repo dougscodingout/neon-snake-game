@@ -296,6 +296,127 @@
     transition: transform 0.1s ease;
   }
 
+  /* Tutorial Overlay */
+  .tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.5s ease-in;
+  }
+
+  .tutorial-overlay.active {
+    display: flex;
+  }
+
+  .tutorial-content {
+    max-width: 500px;
+    padding: 30px;
+    background: rgba(10, 6, 4, 0.95);
+    border: 3px solid #d2a679;
+    box-shadow: 0 0 30px rgba(210, 166, 121, 0.5);
+    text-align: center;
+    position: relative;
+  }
+
+  .tutorial-step {
+    display: none;
+  }
+
+  .tutorial-step.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .tutorial-title {
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    color: #d2a679;
+  }
+
+  .tutorial-text {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    opacity: 0.9;
+  }
+
+  .tutorial-instruction {
+    font-size: 14px;
+    font-style: italic;
+    opacity: 0.7;
+    margin-bottom: 20px;
+  }
+
+  .tutorial-progress {
+    font-size: 12px;
+    opacity: 0.5;
+    margin-top: 20px;
+  }
+
+  .tutorial-skip {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: 1px solid rgba(210, 166, 121, 0.4);
+    color: #d2a679;
+    padding: 5px 15px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DuneFont', monospace;
+    letter-spacing: 1px;
+  }
+
+  .tutorial-skip:hover {
+    background: rgba(210, 166, 121, 0.2);
+    border-color: #d2a679;
+  }
+
+  .tutorial-next-btn {
+    font-family: 'DuneFont', monospace;
+    font-size: 16px;
+    padding: 10px 30px;
+    background: transparent;
+    border: 2px solid #d2a679;
+    color: #d2a679;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+
+  .tutorial-next-btn:hover {
+    background: #d2a679;
+    color: #0a0604;
+  }
+
+  /* Tutorial Highlight */
+  .tutorial-highlight {
+    position: absolute;
+    border: 3px solid #ffd700;
+    box-shadow: 0 0 20px #ffd700, inset 0 0 20px rgba(255, 215, 0, 0.2);
+    pointer-events: none;
+    z-index: 4999;
+    animation: highlightPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes highlightPulse {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+
   /* Utility classes */
   .hidden { display: none !important; }
   .show { display: flex !important; }
@@ -305,6 +426,9 @@
     .intro-screen h1 { font-size: 28px; }
     .prophecy { font-size: 14px; }
     .hud { font-size: 11px; gap: 15px; }
+    .tutorial-content { max-width: 90%; padding: 20px; }
+    .tutorial-title { font-size: 20px; }
+    .tutorial-text { font-size: 14px; }
   }
 </style>
 </head>
@@ -363,6 +487,76 @@
       </div>
     </div>
     <button class="start-btn" id="restartBtn">[ REEMERGIR ]</button>
+  </div>
+</div>
+
+<!-- Tutorial Overlay -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-content">
+    <button class="tutorial-skip" id="tutorialSkip">PULAR</button>
+
+    <div class="tutorial-step active" data-step="0">
+      <div class="tutorial-title">BEM-VINDO AO DESERTO</div>
+      <div class="tutorial-text">
+        Você é uma serpente de areia em Arrakis.<br/>
+        Colete especiarias, mas cuidado: movimento gera vibração.<br/>
+        Vibração atrai o Shai-Hulud.
+      </div>
+      <button class="tutorial-next-btn" onclick="nextTutorialStep()">CONTINUAR</button>
+      <div class="tutorial-progress">Passo 1/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="1">
+      <div class="tutorial-title">MOVIMENTO</div>
+      <div class="tutorial-text">
+        Use as <strong>setas</strong> ou <strong>WASD</strong> para mover sua serpente.
+      </div>
+      <div class="tutorial-instruction">→ Mova-se para continuar</div>
+      <div class="tutorial-progress">Passo 2/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="2">
+      <div class="tutorial-title">ESPECIARIA</div>
+      <div class="tutorial-text">
+        Especiarias (quadrados dourados) são seu objetivo.<br/>
+        Colete-as para aumentar sua pontuação.
+      </div>
+      <div class="tutorial-instruction">→ Colete a especiaria próxima</div>
+      <div class="tutorial-progress">Passo 3/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="3">
+      <div class="tutorial-title">VIBRAÇÃO</div>
+      <div class="tutorial-text">
+        Cada movimento e especiaria aumenta sua <strong>vibração</strong>.<br/>
+        Observe a barra no HUD acima.
+      </div>
+      <button class="tutorial-next-btn" onclick="nextTutorialStep()">CONTINUAR</button>
+      <div class="tutorial-progress">Passo 4/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="4">
+      <div class="tutorial-title">SHAI-HULUD</div>
+      <div class="tutorial-text">
+        Se sua vibração atingir <strong>75+</strong>, o grande verme despertará.<br/>
+        Ele caçará você implacavelmente por 12 segundos.
+      </div>
+      <button class="tutorial-next-btn" onclick="nextTutorialStep()">CONTINUAR</button>
+      <div class="tutorial-progress">Passo 5/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="5">
+      <div class="tutorial-title">VOCÊ ESTÁ PRONTO</div>
+      <div class="tutorial-text">
+        <strong>Dica:</strong> Power-ups ciano (Slow Dive) reduzem vibração.<br/>
+        Aparecem a cada 5 especiarias coletadas.
+      </div>
+      <div class="tutorial-text" style="margin-top: 20px;">
+        Que as areias estejam com você.
+      </div>
+      <button class="tutorial-next-btn" onclick="completeTutorial()">COMEÇAR JOGO</button>
+      <div class="tutorial-progress">Passo 6/6</div>
+    </div>
   </div>
 </div>
 
@@ -439,6 +633,16 @@
   let shaiHuludPosition = null;
   let shaiHuludApproachSpeed = 400; // ms entre movimentos
   let shaiHuludInterval = null;
+
+  // ============================================================
+  // TUTORIAL
+  // ============================================================
+  const tutorialOverlay = document.getElementById('tutorialOverlay');
+  const tutorialSkipBtn = document.getElementById('tutorialSkip');
+  let tutorialActive = false;
+  let tutorialCurrentStep = 0;
+  let tutorialCompleted = localStorage.getItem('sandSerpentTutorialCompleted') === 'true';
+  let hasMoved = false;
 
   // ============================================================
   // ÁUDIO 8-BIT PROCEDURAL
@@ -547,6 +751,88 @@
   }
 
   // ============================================================
+  // TUTORIAL FUNCTIONS
+  // ============================================================
+  function startTutorial() {
+    tutorialActive = true;
+    tutorialCurrentStep = 0;
+    hasMoved = false;
+    tutorialOverlay.classList.add('active');
+    showTutorialStep(0);
+  }
+
+  function showTutorialStep(step) {
+    // Esconder todos os passos
+    document.querySelectorAll('.tutorial-step').forEach(s => s.classList.remove('active'));
+
+    // Mostrar passo atual
+    const currentStepEl = document.querySelector(`.tutorial-step[data-step="${step}"]`);
+    if (currentStepEl) {
+      currentStepEl.classList.add('active');
+    }
+
+    tutorialCurrentStep = step;
+  }
+
+  // Função global para avançar tutorial (chamada pelo onclick nos botões)
+  window.nextTutorialStep = function() {
+    const nextStep = tutorialCurrentStep + 1;
+
+    if (nextStep === 1) {
+      // Passo de movimento - espera o jogador se mover
+      showTutorialStep(1);
+    } else if (nextStep === 2) {
+      // Passo de especiaria - spawnar uma perto
+      showTutorialStep(2);
+      spawnTutorialSpice();
+    } else if (nextStep < 6) {
+      showTutorialStep(nextStep);
+    }
+  };
+
+  // Função global para completar tutorial
+  window.completeTutorial = function() {
+    tutorialActive = false;
+    tutorialOverlay.classList.remove('active');
+    localStorage.setItem('sandSerpentTutorialCompleted', 'true');
+    tutorialCompleted = true;
+  };
+
+  function skipTutorial() {
+    tutorialActive = false;
+    tutorialOverlay.classList.remove('active');
+    localStorage.setItem('sandSerpentTutorialCompleted', 'true');
+    tutorialCompleted = true;
+  }
+
+  function spawnTutorialSpice() {
+    // Spawna uma especiaria perto da serpente para o tutorial
+    const head = serpent[0];
+    const nearbyPos = {
+      x: Math.max(0, Math.min(COLS - 1, head.x + 3)),
+      y: head.y
+    };
+    spices = [{x: nearbyPos.x, y: nearbyPos.y, glow: 0}];
+  }
+
+  function checkTutorialProgression() {
+    if (!tutorialActive) return;
+
+    // Passo 1: Aguardar movimento
+    if (tutorialCurrentStep === 1 && hasMoved) {
+      nextTutorialStep();
+    }
+
+    // Passo 2: Aguardar coleta de especiaria
+    if (tutorialCurrentStep === 2 && spiceCount > 0) {
+      nextTutorialStep();
+    }
+  }
+
+  // Event listener para skip
+  tutorialSkipBtn.addEventListener('click', skipTutorial);
+
+  // ============================================================
   // UTILITIES
   // ============================================================
   function randomInt(min, max) {
@@ -618,6 +904,11 @@
     gameoverScreen.classList.add('hidden');
     gameContainer.classList.add('show');
     gameContainer.classList.remove('hidden');
+
+    // Verificar se deve mostrar tutorial
+    if (!tutorialCompleted) {
+      startTutorial();
+    }
 
     // Iniciar loop
     if (gameLoop) clearInterval(gameLoop);
@@ -775,6 +1066,11 @@
     totalMoves++;
     if (vibrationLevel < 20) silentMoves++;
 
+    // Tutorial: marcar que se moveu
+    if (tutorialActive && !hasMoved) {
+      hasMoved = true;
+    }
+
     // Vibração por movimento
     if (!isSlowDiveActive) {
       targetVibration += VIBRATION_PER_MOVE;
@@ -829,6 +1125,9 @@
     // Incrementar ciclos
     cycleCount++;
     cycleCountEl.textContent = cycleCount;
+
+    // Verificar progressão do tutorial
+    checkTutorialProgression();
   }
 
   // ============================================================
