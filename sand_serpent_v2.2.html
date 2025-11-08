@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>🏜️ Sand Serpent v2.2 — Arcade Duna</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+<style>
+  * {box-sizing:border-box; margin:0; padding:0;}
+
+  @font-face {
+    font-family: 'DuneFont';
+    src: local('Courier New'), local('Consolas'), monospace;
+  }
+
+  /* ============================================================ */
+  /* ARCADE DUNA - MOLDURA DE AREIA VIVA */
+  /* ============================================================ */
+  html, body {
+    height: 100%;
+    /* Gradiente radial quente - do centro âmbar ao escuro profundo */
+    background: radial-gradient(circle at 50% 70%, #5c3a1e 0%, #3b2a1e 40%, #24180f 70%, #1a1006 100%);
+    font-family: 'DuneFont', 'Courier New', monospace;
+    color: #D4A373;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* CRT Scanlines effect - mais suave para atmosfera de deserto */
+  .crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.1),
+      rgba(0, 0, 0, 0.1) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+    z-index: 9998;
+    opacity: 0.2;
+  }
+
+  /* Sand Wind Effect - vento dourado que atravessa a tela */
+  @keyframes sandWind {
+    0% {
+      transform: translateX(-150%);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.3;
+    }
+    80% {
+      opacity: 0.3;
+    }
+    100% {
+      transform: translateX(150%);
+      opacity: 0;
+    }
+  }
+
+  .sand-wind {
+    position: fixed;
+    top: 0;
+    left: -50%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 223, 163, 0.15) 30%,
+      rgba(212, 163, 115, 0.25) 50%,
+      rgba(255, 223, 163, 0.15) 70%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 9997;
+    animation: sandWind 12s ease-in-out infinite;
+  }
+
+  /* Tela inicial */
+  .intro-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    max-width: 800px;
+    animation: fadeIn 1.5s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .intro-screen h1 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    margin-bottom: 30px;
+    color: #FFDFA3;
+    text-shadow: 2px 2px 0 #3b2a1e, 0 0 25px rgba(255, 223, 163, 0.5);
+    animation: glitch 5s infinite;
+  }
+
+  @keyframes glitch {
+    0%, 90%, 100% { transform: translate(0); }
+    91% { transform: translate(-2px, 1px); }
+    92% { transform: translate(2px, -1px); }
+    93% { transform: translate(0); }
+  }
+
+  .prophecy {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 40px;
+    opacity: 0.85;
+    max-width: 600px;
+    font-family: monospace;
+    color: #C49A6C;
+  }
+
+  .start-btn {
+    font-family: 'DuneFont', monospace;
+    font-size: 20px;
+    padding: 15px 50px;
+    background: transparent;
+    border: 3px solid #D4A373;
+    color: #D4A373;
+    cursor: pointer;
+    letter-spacing: 3px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  .start-btn:hover {
+    background: #D4A373;
+    color: #1a1006;
+    box-shadow: 0 0 25px rgba(212, 163, 115, 0.8);
+    transform: scale(1.05);
+  }
+
+  /* Game area - MOLDURA ARCADE DUNA */
+  .game-container {
+    display: none;
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+  }
+
+  /* Canvas com moldura de areia entalhada */
+  canvas {
+    border-radius: 28px;
+    /* Brilho quente - luz de especiaria */
+    box-shadow:
+      0 0 50px rgba(201, 151, 93, 0.4),        /* Brilho âmbar externo */
+      0 0 120px rgba(94, 61, 26, 0.25),        /* Halo marrom profundo */
+      inset 0 0 35px rgba(255, 220, 168, 0.35); /* Luz interna dourada */
+    background: #1a0f08;
+    image-rendering: pixelated;
+    /* Filtros que melhoram o calor visual */
+    filter: contrast(1.15) saturate(1.35) brightness(1.02);
+    transition: filter 0.15s ease, box-shadow 0.3s ease;
+  }
+
+  canvas:hover {
+    filter: contrast(1.2) saturate(1.4) brightness(1.08);
+  }
+
+  /* HUD - Acima do canvas, fora da área de jogo */
+  .hud {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 25px;
+    background: rgba(59, 42, 30, 0.8);
+    border: 2px solid rgba(212, 163, 115, 0.5);
+    border-radius: 8px;
+    font-size: 14px;
+    letter-spacing: 2px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  }
+
+  .hud-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hud-label {
+    opacity: 0.7;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: #C49A6C;
+  }
+
+  .hud-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #FFDFA3;
+  }
+
+  .vibration-bar {
+    width: 120px;
+    height: 12px;
+    background: rgba(94, 61, 26, 0.4);
+    border: 1px solid rgba(212, 163, 115, 0.5);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .vibration-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: #D4A373;
+    transition: width 0.2s ease, background 0.3s;
+    box-shadow: 0 0 8px rgba(212, 163, 115, 0.6);
+  }
+
+  .vibration-fill.danger {
+    background: #ff4500;
+    box-shadow: 0 0 12px #ff4500;
+  }
+
+  /* Notificações periféricas */
+  .notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 12px 20px;
+    background: rgba(59, 42, 30, 0.95);
+    border: 2px solid #D4A373;
+    border-radius: 6px;
+    font-size: 14px;
+    letter-spacing: 2px;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.4s ease;
+    z-index: 1000;
+    max-width: 250px;
+    text-align: right;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .notification.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .notification.warning {
+    border-color: #ff4500;
+    color: #ff4500;
+    box-shadow: 0 0 20px rgba(255, 69, 0, 0.6);
+  }
+
+  /* Power-up indicator */
+  .powerup-indicator {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    padding: 10px 20px;
+    background: rgba(102, 221, 255, 0.2);
+    border: 2px solid #66ddff;
+    border-radius: 6px;
+    color: #66ddff;
+    opacity: 0;
+    transition: opacity 0.3s;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 15px rgba(102, 221, 255, 0.3);
+  }
+
+  .powerup-indicator.active {
+    opacity: 1;
+  }
+
+  /* Game over screen */
+  .gameover-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    max-width: 800px;
+    animation: fadeIn 1.5s ease-in;
+  }
+
+  .gameover-screen h2 {
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 5px;
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    color: #FFDFA3;
+  }
+
+  .final-prophecy {
+    font-size: 18px;
+    font-style: italic;
+    line-height: 1.6;
+    margin-bottom: 30px;
+    opacity: 0.85;
+    max-width: 600px;
+    color: #C49A6C;
+  }
+
+  .final-stats {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+    font-size: 16px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .stat-label {
+    opacity: 0.6;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #C49A6C;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #FFDFA3;
+  }
+
+  /* Custom cursor */
+  .custom-cursor {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    background: #D4A373;
+    border: 1px solid #FFDFA3;
+    pointer-events: none;
+    z-index: 10000;
+    transition: transform 0.1s ease;
+    box-shadow: 0 0 6px rgba(212, 163, 115, 0.6);
+  }
+
+  /* Tutorial Overlay */
+  .tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.88);
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.5s ease-in;
+  }
+
+  .tutorial-overlay.active {
+    display: flex;
+  }
+
+  .tutorial-content {
+    max-width: 500px;
+    padding: 30px;
+    background: rgba(59, 42, 30, 0.95);
+    border: 3px solid #D4A373;
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(212, 163, 115, 0.5);
+    text-align: center;
+    position: relative;
+  }
+
+  .tutorial-step {
+    display: none;
+  }
+
+  .tutorial-step.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .tutorial-title {
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    color: #FFDFA3;
+  }
+
+  .tutorial-text {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    opacity: 0.9;
+    color: #D4A373;
+  }
+
+  .tutorial-instruction {
+    font-size: 14px;
+    font-style: italic;
+    opacity: 0.75;
+    margin-bottom: 20px;
+    color: #C49A6C;
+  }
+
+  .tutorial-progress {
+    font-size: 12px;
+    opacity: 0.5;
+    margin-top: 20px;
+    color: #C49A6C;
+  }
+
+  .tutorial-skip {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: 1px solid rgba(212, 163, 115, 0.5);
+    color: #D4A373;
+    padding: 5px 15px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DuneFont', monospace;
+    letter-spacing: 1px;
+    border-radius: 4px;
+  }
+
+  .tutorial-skip:hover {
+    background: rgba(212, 163, 115, 0.2);
+    border-color: #D4A373;
+  }
+
+  .tutorial-next-btn {
+    font-family: 'DuneFont', monospace;
+    font-size: 16px;
+    padding: 10px 30px;
+    background: transparent;
+    border: 2px solid #D4A373;
+    border-radius: 6px;
+    color: #D4A373;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+
+  .tutorial-next-btn:hover {
+    background: #D4A373;
+    color: #1a1006;
+  }
+
+  /* Tutorial Highlight */
+  .tutorial-highlight {
+    position: absolute;
+    border: 3px solid #ffd700;
+    box-shadow: 0 0 20px #ffd700, inset 0 0 20px rgba(255, 215, 0, 0.2);
+    pointer-events: none;
+    z-index: 4999;
+    animation: highlightPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes highlightPulse {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+
+  /* Utility classes */
+  .hidden { display: none !important; }
+  .show { display: flex !important; }
+
+  /* Responsive */
+  @media(max-width: 768px) {
+    .intro-screen h1 { font-size: 28px; }
+    .prophecy { font-size: 14px; }
+    .hud { font-size: 11px; gap: 15px; }
+    .tutorial-content { max-width: 90%; padding: 20px; }
+    .tutorial-title { font-size: 20px; }
+    .tutorial-text { font-size: 14px; }
+    canvas {
+      border-radius: 18px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="crt-overlay"></div>
+<div class="sand-wind"></div>
+<div class="custom-cursor"></div>
+<div class="notification" id="notification"></div>
+
+<div class="container">
+  <!-- Tela inicial -->
+  <div class="intro-screen show" id="introScreen">
+    <h1>SAND SERPENT</h1>
+    <p class="prophecy">"O deserto não perdoa aqueles que fazem barulho.<br/>Mova-se com sabedoria. Colete especiarias.<br/>Sobreviva ao Shai-Hulud."</p>
+    <button class="start-btn" id="startBtn">[ INICIAR ]</button>
+  </div>
+
+  <!-- Game -->
+  <div class="game-container" id="gameContainer">
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">ESPECIARIA</span>
+        <span class="hud-value" id="spiceCount">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">VIBRAÇÃO</span>
+        <div class="vibration-bar">
+          <div class="vibration-fill" id="vibrationFill"></div>
+        </div>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">CICLOS</span>
+        <span class="hud-value" id="cycleCount">0</span>
+      </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div class="powerup-indicator" id="powerupIndicator">SLOW DIVE ATIVO</div>
+  </div>
+
+  <!-- Game over -->
+  <div class="gameover-screen" id="gameoverScreen">
+    <h2>O DESERTO VENCEU</h2>
+    <p class="final-prophecy" id="finalProphecy"></p>
+    <div class="final-stats">
+      <div class="stat-item">
+        <span class="stat-label">ESPECIARIAS</span>
+        <span class="stat-value" id="finalSpice">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">CICLOS</span>
+        <span class="stat-value" id="finalCycles">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">SILÊNCIO</span>
+        <span class="stat-value" id="silenceScore">0%</span>
+      </div>
+    </div>
+    <button class="start-btn" id="restartBtn">[ REEMERGIR ]</button>
+  </div>
+</div>
+
+<!-- Tutorial Overlay -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-content">
+    <button class="tutorial-skip" id="tutorialSkip">PULAR</button>
+
+    <div class="tutorial-step active" data-step="0">
+      <div class="tutorial-title">BEM-VINDO AO DESERTO</div>
+      <div class="tutorial-text">
+        Você é uma serpente de areia em Arrakis.<br/>
+        Colete especiarias, mas cuidado: movimento gera vibração.<br/>
+        Vibração atrai o Shai-Hulud.
+      </div>
+      <button class="tutorial-next-btn" onclick="nextTutorialStep()">CONTINUAR</button>
+      <div class="tutorial-progress">Passo 1/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="1">
+      <div class="tutorial-title">MOVIMENTO</div>
+      <div class="tutorial-text">
+        Use as <strong>setas</strong> ou <strong>WASD</strong> para mover sua serpente.
+      </div>
+      <div class="tutorial-instruction">→ Mova-se para continuar</div>
+      <div class="tutorial-progress">Passo 2/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="2">
+      <div class="tutorial-title">ESPECIARIA</div>
+      <div class="tutorial-text">
+        Especiarias (quadrados dourados) são seu objetivo.<br/>
+        Colete-as para aumentar sua pontuação.
+      </div>
+      <div class="tutorial-instruction">→ Colete a especiaria próxima</div>
+      <div class="tutorial-progress">Passo 3/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="3">
+      <div class="tutorial-title">VIBRAÇÃO</div>
+      <div class="tutorial-text">
+        Cada movimento e especiaria aumenta sua <strong>vibração</strong>.<br/>
+        Observe a barra no HUD acima.
+      </div>
+      <button class="tutorial-next-btn" onclick="nextTutorialStep()">CONTINUAR</button>
+      <div class="tutorial-progress">Passo 4/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="4">
+      <div class="tutorial-title">SHAI-HULUD</div>
+      <div class="tutorial-text">
+        Se sua vibração atingir <strong>75+</strong>, o grande verme despertará.<br/>
+        Ele caçará você implacavelmente por 12 segundos.
+      </div>
+      <button class="tutorial-next-btn" onclick="nextTutorialStep()">CONTINUAR</button>
+      <div class="tutorial-progress">Passo 5/6</div>
+    </div>
+
+    <div class="tutorial-step" data-step="5">
+      <div class="tutorial-title">VOCÊ ESTÁ PRONTO</div>
+      <div class="tutorial-text">
+        <strong>Dica:</strong> Power-ups ciano (Slow Dive) reduzem vibração.<br/>
+        Aparecem a cada 5 especiarias coletadas.
+      </div>
+      <div class="tutorial-text" style="margin-top: 20px;">
+        Que as areias estejam com você.
+      </div>
+      <button class="tutorial-next-btn" onclick="completeTutorial()">COMEÇAR JOGO</button>
+      <div class="tutorial-progress">Passo 6/6</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ============================================================
+  // ELEMENTOS DOM
+  // ============================================================
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const introScreen = document.getElementById('introScreen');
+  const gameContainer = document.getElementById('gameContainer');
+  const gameoverScreen = document.getElementById('gameoverScreen');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const cursorEl = document.querySelector('.custom-cursor');
+  const notificationEl = document.getElementById('notification');
+  const powerupIndicatorEl = document.getElementById('powerupIndicator');
+
+  // HUD
+  const spiceCountEl = document.getElementById('spiceCount');
+  const cycleCountEl = document.getElementById('cycleCount');
+  const vibrationFillEl = document.getElementById('vibrationFill');
+
+  // Final
+  const finalProphecyEl = document.getElementById('finalProphecy');
+  const finalSpiceEl = document.getElementById('finalSpice');
+  const finalCyclesEl = document.getElementById('finalCycles');
+  const silenceScoreEl = document.getElementById('silenceScore');
+
+  // ============================================================
+  // CONFIGURAÇÕES DO JOGO
+  // ============================================================
+  const CELL = 20;
+  const COLS = 30;
+  const ROWS = 25;
+  canvas.width = COLS * CELL;
+  canvas.height = ROWS * CELL;
+
+  const INITIAL_SPEED = 150; // ms por movimento
+  const MAX_VIBRATION = 100;
+  const VIBRATION_DECAY = 0.5;
+  const VIBRATION_PER_MOVE = 3;
+  const SPICE_VIBRATION_BOOST = 15;
+  const SLOW_DIVE_DURATION = 5000;
+  const SHAI_HULUD_THRESHOLD = 75; // Vibração que spawna o verme
+
+  // ============================================================
+  // ESTADO DO JOGO
+  // ============================================================
+  let serpent = [];
+  let direction = {x: 1, y: 0};
+  let nextDirection = {x: 1, y: 0};
+  let spices = [];
+  let slowDivePowerup = null;
+  let vibrationLevel = 0;
+  let targetVibration = 0;
+  let spiceCount = 0;
+  let cycleCount = 0;
+  let gameSpeed = INITIAL_SPEED;
+  let gameOver = false;
+  let gameLoop = null;
+  let isSlowDiveActive = false;
+  let slowDiveTimer = null;
+  let totalMoves = 0;
+  let silentMoves = 0;
+  let particles = [];
+  let trailSegments = [];
+
+  // Shai-Hulud (Alpha Worm)
+  let shaiHuludActive = false;
+  let shaiHuludPosition = null;
+  let shaiHuludApproachSpeed = 400; // ms entre movimentos
+  let shaiHuludInterval = null;
+
+  // ============================================================
+  // TUTORIAL
+  // ============================================================
+  const tutorialOverlay = document.getElementById('tutorialOverlay');
+  const tutorialSkipBtn = document.getElementById('tutorialSkip');
+  let tutorialActive = false;
+  let tutorialCurrentStep = 0;
+  let tutorialCompleted = localStorage.getItem('sandSerpentTutorialCompleted') === 'true';
+  let hasMoved = false;
+
+  // ============================================================
+  // ÁUDIO 8-BIT (SEM DRONE DE FUNDO)
+  // ============================================================
+  let audioContext = null;
+  let masterGain = null;
+
+  function initAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioContext.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(audioContext.destination);
+
+    // NOTA: Drones de fundo removidos para evitar zumbido constante
+  }
+
+  // Sons 8-bit para eventos
+  function playBlip(freq, duration = 0.1) {
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.2;
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    osc.stop(audioContext.currentTime + duration);
+  }
+
+  function playCollectSound() {
+    // Arpeggio ascendente 8-bit
+    [330, 440, 550].forEach((freq, i) => {
+      setTimeout(() => playBlip(freq, 0.08), i * 50);
+    });
+  }
+
+  function playPowerupSound() {
+    // Som de power-up descendente
+    [880, 660, 440, 330].forEach((freq, i) => {
+      setTimeout(() => playBlip(freq, 0.12), i * 60);
+    });
+  }
+
+  function playWarningSound() {
+    // Alerta grave pulsante
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => playBlip(110, 0.15), i * 150);
+    }
+  }
+
+  function playDeathSound() {
+    // Glissando descendente dramático
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 440;
+    gain.gain.value = 0.3;
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+    osc.frequency.exponentialRampToValueAtTime(55, audioContext.currentTime + 1);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+    osc.stop(audioContext.currentTime + 1);
+  }
+
+  // ============================================================
+  // RESPIRAÇÃO DO DESERTO - Efeito dinâmico na moldura
+  // ============================================================
+  function startDesertBreathing() {
+    setInterval(() => {
+      const now = Date.now();
+      const pulse = 1 + Math.sin(now / 4000) * 0.04; // Respiração lenta
+      const brightness = 1.02 + Math.sin(now / 5000) * 0.03;
+      canvas.style.filter = `brightness(${brightness}) contrast(1.15) saturate(1.35)`;
+
+      // Pulso no brilho da moldura
+      const glowIntensity = 0.4 + Math.sin(now / 3500) * 0.15;
+      canvas.style.boxShadow = `
+        0 0 50px rgba(201, 151, 93, ${glowIntensity}),
+        0 0 120px rgba(94, 61, 26, 0.25),
+        inset 0 0 35px rgba(255, 220, 168, ${glowIntensity * 0.8})
+      `;
+    }, 100);
+  }
+
+  // ============================================================
+  // TUTORIAL FUNCTIONS
+  // ============================================================
+  function startTutorial() {
+    tutorialActive = true;
+    tutorialCurrentStep = 0;
+    hasMoved = false;
+    tutorialOverlay.classList.add('active');
+    showTutorialStep(0);
+  }
+
+  function showTutorialStep(step) {
+    // Esconder todos os passos
+    document.querySelectorAll('.tutorial-step').forEach(s => s.classList.remove('active'));
+
+    // Mostrar passo atual
+    const currentStepEl = document.querySelector(`.tutorial-step[data-step="${step}"]`);
+    if (currentStepEl) {
+      currentStepEl.classList.add('active');
+    }
+
+    tutorialCurrentStep = step;
+  }
+
+  // Função global para avançar tutorial (chamada pelo onclick nos botões)
+  window.nextTutorialStep = function() {
+    const nextStep = tutorialCurrentStep + 1;
+
+    if (nextStep === 1) {
+      // Passo de movimento - espera o jogador se mover
+      showTutorialStep(1);
+    } else if (nextStep === 2) {
+      // Passo de especiaria - spawnar uma perto
+      showTutorialStep(2);
+      spawnTutorialSpice();
+    } else if (nextStep < 6) {
+      showTutorialStep(nextStep);
+    }
+  };
+
+  // Função global para completar tutorial
+  window.completeTutorial = function() {
+    tutorialActive = false;
+    tutorialOverlay.classList.remove('active');
+    localStorage.setItem('sandSerpentTutorialCompleted', 'true');
+    tutorialCompleted = true;
+  };
+
+  function skipTutorial() {
+    tutorialActive = false;
+    tutorialOverlay.classList.remove('active');
+    localStorage.setItem('sandSerpentTutorialCompleted', 'true');
+    tutorialCompleted = true;
+  }
+
+  function spawnTutorialSpice() {
+    // Spawna uma especiaria perto da serpente para o tutorial
+    const head = serpent[0];
+    const nearbyPos = {
+      x: Math.max(0, Math.min(COLS - 1, head.x + 3)),
+      y: head.y
+    };
+    spices = [{x: nearbyPos.x, y: nearbyPos.y, glow: 0}];
+  }
+
+  function checkTutorialProgression() {
+    if (!tutorialActive) return;
+
+    // Passo 1: Aguardar movimento
+    if (tutorialCurrentStep === 1 && hasMoved) {
+      nextTutorialStep();
+    }
+
+    // Passo 2: Aguardar coleta de especiaria
+    if (tutorialCurrentStep === 2 && spiceCount > 0) {
+      nextTutorialStep();
+    }
+  }
+
+  // Event listener para skip
+  tutorialSkipBtn.addEventListener('click', skipTutorial);
+
+  // ============================================================
+  // UTILITIES
+  // ============================================================
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function randomChoice(arr) {
+    return arr[randomInt(0, arr.length - 1)];
+  }
+
+  function showNotification(text, isWarning = false) {
+    notificationEl.textContent = text;
+    notificationEl.classList.toggle('warning', isWarning);
+    notificationEl.classList.add('show');
+
+    setTimeout(() => {
+      notificationEl.classList.remove('show');
+    }, 2000);
+  }
+
+  const ENDING_PROPHECIES = [
+    '"Aquele que silencia, escuta o deserto."',
+    '"Cada grão de areia é um batimento do tempo."',
+    '"A vibração é o chamado dos deuses antigos."',
+    '"O poder está no som que você não fez."',
+    '"A areia lembra de todos os que caíram."',
+    '"Shai-Hulud não esquece."'
+  ];
+
+  // ============================================================
+  // INICIALIZAÇÃO
+  // ============================================================
+  function startGame() {
+    // Reset completo
+    serpent = [{x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2)}];
+    direction = {x: 1, y: 0};
+    nextDirection = {x: 1, y: 0};
+    spices = [];
+    slowDivePowerup = null;
+    vibrationLevel = 0;
+    targetVibration = 0;
+    spiceCount = 0;
+    cycleCount = 0;
+    gameSpeed = INITIAL_SPEED;
+    gameOver = false;
+    isSlowDiveActive = false;
+    totalMoves = 0;
+    silentMoves = 0;
+    particles = [];
+    trailSegments = [];
+    shaiHuludActive = false;
+    shaiHuludPosition = null;
+
+    if (shaiHuludInterval) {
+      clearInterval(shaiHuludInterval);
+      shaiHuludInterval = null;
+    }
+
+    // Iniciar áudio
+    if (!audioContext) initAudio();
+
+    // Spawnar especiarias iniciais
+    for (let i = 0; i < 3; i++) spawnSpice();
+
+    // Transição de telas
+    introScreen.classList.remove('show');
+    introScreen.classList.add('hidden');
+    gameoverScreen.classList.remove('show');
+    gameoverScreen.classList.add('hidden');
+    gameContainer.classList.add('show');
+    gameContainer.classList.remove('hidden');
+
+    // Verificar se deve mostrar tutorial
+    if (!tutorialCompleted) {
+      startTutorial();
+    }
+
+    // Iniciar loop
+    if (gameLoop) clearInterval(gameLoop);
+    gameLoop = setInterval(update, gameSpeed);
+  }
+
+  function restartGame() {
+    startGame();
+  }
+
+  // ============================================================
+  // SPAWN DE ITENS
+  // ============================================================
+  function spawnSpice() {
+    let pos;
+    let attempts = 0;
+    do {
+      pos = {x: randomInt(0, COLS - 1), y: randomInt(0, ROWS - 1)};
+      attempts++;
+    } while (
+      (serpent.some(seg => seg.x === pos.x && seg.y === pos.y) ||
+       spices.some(s => s.x === pos.x && s.y === pos.y) ||
+       (slowDivePowerup && slowDivePowerup.x === pos.x && slowDivePowerup.y === pos.y)) &&
+      attempts < 50
+    );
+
+    if (attempts < 50) {
+      spices.push({x: pos.x, y: pos.y, glow: 0});
+    }
+  }
+
+  function spawnSlowDivePowerup() {
+    if (slowDivePowerup) return; // Só um por vez
+
+    let pos;
+    let attempts = 0;
+    do {
+      pos = {x: randomInt(0, COLS - 1), y: randomInt(0, ROWS - 1)};
+      attempts++;
+    } while (
+      (serpent.some(seg => seg.x === pos.x && seg.y === pos.y) ||
+       spices.some(s => s.x === pos.x && s.y === pos.y)) &&
+      attempts < 50
+    );
+
+    if (attempts < 50) {
+      slowDivePowerup = {x: pos.x, y: pos.y, pulse: 0};
+      showNotification('SLOW DIVE DETECTADO');
+    }
+  }
+
+  // ============================================================
+  // SHAI-HULUD (ALPHA WORM) - MECÂNICA CORRIGIDA
+  // ============================================================
+  function spawnShaiHulud() {
+    if (shaiHuludActive) return;
+
+    shaiHuludActive = true;
+    playWarningSound();
+    showNotification('SHAI-HULUD SE APROXIMA!', true);
+
+    // Spawna na borda oposta ao jogador
+    const head = serpent[0];
+    if (head.x < COLS / 2) {
+      shaiHuludPosition = {x: COLS - 1, y: randomInt(0, ROWS - 1)};
+    } else {
+      shaiHuludPosition = {x: 0, y: randomInt(0, ROWS - 1)};
+    }
+
+    // Movimento em direção ao jogador
+    shaiHuludInterval = setInterval(() => {
+      if (!shaiHuludActive || gameOver || !shaiHuludPosition) {
+        clearInterval(shaiHuludInterval);
+        shaiHuludInterval = null;
+        return;
+      }
+
+      const head = serpent[0];
+      const dx = head.x - shaiHuludPosition.x;
+      const dy = head.y - shaiHuludPosition.y;
+
+      // Move em direção ao jogador
+      if (Math.abs(dx) > Math.abs(dy)) {
+        shaiHuludPosition.x += dx > 0 ? 1 : -1;
+      } else {
+        shaiHuludPosition.y += dy > 0 ? 1 : -1;
+      }
+
+      // Partículas de areia
+      spawnParticles(shaiHuludPosition.x, shaiHuludPosition.y, 3, '#8b4513', 2);
+
+      // Verificar colisão
+      if (shaiHuludPosition.x === head.x && shaiHuludPosition.y === head.y) {
+        endGame();
+      }
+    }, shaiHuludApproachSpeed);
+
+    // Desaparece após 12 segundos
+    setTimeout(() => {
+      shaiHuludActive = false;
+      shaiHuludPosition = null;
+      if (shaiHuludInterval) {
+        clearInterval(shaiHuludInterval);
+        shaiHuludInterval = null;
+      }
+      showNotification('SHAI-HULUD RETORNOU À AREIA');
+    }, 12000);
+  }
+
+  // ============================================================
+  // PARTÍCULAS
+  // ============================================================
+  function spawnParticles(gridX, gridY, count, color, spread) {
+    const centerX = gridX * CELL + CELL / 2;
+    const centerY = gridY * CELL + CELL / 2;
+
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: centerX,
+        y: centerY,
+        vx: (Math.random() - 0.5) * spread,
+        vy: (Math.random() - 0.5) * spread - 1,
+        color: color,
+        life: 1,
+        size: 3 // Tamanho fixo para evitar pixels órfãos
+      });
+    }
+  }
+
+  // ============================================================
+  // UPDATE LOOP
+  // ============================================================
+  function update() {
+    if (gameOver) return;
+
+    direction = {...nextDirection};
+    const head = {...serpent[0]};
+    head.x += direction.x;
+    head.y += direction.y;
+
+    // Wraparound
+    if (head.x < 0) head.x = COLS - 1;
+    if (head.x >= COLS) head.x = 0;
+    if (head.y < 0) head.y = ROWS - 1;
+    if (head.y >= ROWS) head.y = 0;
+
+    // Auto-colisão
+    if (serpent.some(seg => seg.x === head.x && seg.y === head.y)) {
+      endGame();
+      return;
+    }
+
+    serpent.unshift(head);
+
+    // Tracking de movimentos
+    totalMoves++;
+    if (vibrationLevel < 20) silentMoves++;
+
+    // Tutorial: marcar que se moveu
+    if (tutorialActive && !hasMoved) {
+      hasMoved = true;
+    }
+
+    // Vibração por movimento
+    if (!isSlowDiveActive) {
+      targetVibration += VIBRATION_PER_MOVE;
+    }
+
+    // Coleta de especiaria
+    const spiceIndex = spices.findIndex(s => s.x === head.x && s.y === head.y);
+    if (spiceIndex !== -1) {
+      spices.splice(spiceIndex, 1);
+      spiceCount++;
+      spiceCountEl.textContent = spiceCount;
+      playCollectSound();
+      spawnParticles(head.x, head.y, 8, '#D4A373', 3);
+
+      // Aumenta vibração
+      targetVibration += SPICE_VIBRATION_BOOST;
+
+      // Spawna nova especiaria
+      spawnSpice();
+
+      // A cada 5 especiarias, spawna power-up
+      if (spiceCount % 5 === 0) {
+        spawnSlowDivePowerup();
+      }
+    } else {
+      // Remove cauda se não comeu
+      const tail = serpent.pop();
+      trailSegments.push({x: tail.x, y: tail.y, life: 1});
+    }
+
+    // Coleta de Slow Dive power-up
+    if (slowDivePowerup && head.x === slowDivePowerup.x && head.y === slowDivePowerup.y) {
+      activateSlowDive();
+      slowDivePowerup = null;
+    }
+
+    // Decay de vibração
+    if (!isSlowDiveActive) {
+      targetVibration = Math.max(0, targetVibration - VIBRATION_DECAY);
+    } else {
+      targetVibration = Math.max(0, targetVibration - VIBRATION_DECAY * 3);
+    }
+
+    // Atualizar vibração UI
+    updateVibrationUI();
+
+    // Spawnar Shai-Hulud se vibração alta
+    if (vibrationLevel >= SHAI_HULUD_THRESHOLD && !shaiHuludActive) {
+      spawnShaiHulud();
+    }
+
+    // Incrementar ciclos
+    cycleCount++;
+    cycleCountEl.textContent = cycleCount;
+
+    // Verificar progressão do tutorial
+    checkTutorialProgression();
+  }
+
+  // ============================================================
+  // POWER-UP: SLOW DIVE
+  // ============================================================
+  function activateSlowDive() {
+    if (isSlowDiveActive) return;
+
+    isSlowDiveActive = true;
+    playPowerupSound();
+    powerupIndicatorEl.classList.add('active');
+    showNotification('MERGULHO PROFUNDO');
+
+    // Reduz vibração instantaneamente
+    targetVibration = Math.max(0, targetVibration - 30);
+
+    // Timer
+    slowDiveTimer = setTimeout(() => {
+      isSlowDiveActive = false;
+      powerupIndicatorEl.classList.remove('active');
+    }, SLOW_DIVE_DURATION);
+  }
+
+  // ============================================================
+  // UI E VIBRAÇÃO
+  // ============================================================
+  function updateVibrationUI() {
+    // Smooth transition
+    vibrationLevel += (targetVibration - vibrationLevel) * 0.15;
+    vibrationLevel = Math.min(MAX_VIBRATION, vibrationLevel);
+
+    const percentage = (vibrationLevel / MAX_VIBRATION) * 100;
+    vibrationFillEl.style.width = percentage + '%';
+
+    // Cores baseadas no nível
+    if (vibrationLevel >= SHAI_HULUD_THRESHOLD) {
+      vibrationFillEl.classList.add('danger');
+    } else {
+      vibrationFillEl.classList.remove('danger');
+    }
+  }
+
+  // ============================================================
+  // FIM DE JOGO
+  // ============================================================
+  function endGame() {
+    gameOver = true;
+    clearInterval(gameLoop);
+    gameLoop = null;
+
+    if (shaiHuludInterval) {
+      clearInterval(shaiHuludInterval);
+      shaiHuludInterval = null;
+    }
+
+    playDeathSound();
+
+    // Calcular estatísticas
+    const silencePercentage = totalMoves > 0 ? Math.round((silentMoves / totalMoves) * 100) : 0;
+
+    // Atualizar tela final
+    finalProphecyEl.textContent = randomChoice(ENDING_PROPHECIES);
+    finalSpiceEl.textContent = spiceCount;
+    finalCyclesEl.textContent = cycleCount;
+    silenceScoreEl.textContent = silencePercentage + '%';
+
+    // Transição
+    setTimeout(() => {
+      gameContainer.classList.remove('show');
+      gameContainer.classList.add('hidden');
+      gameoverScreen.classList.add('show');
+      gameoverScreen.classList.remove('hidden');
+    }, 1500);
+  }
+
+  // ============================================================
+  // RENDERIZAÇÃO
+  // ============================================================
+  function render() {
+    requestAnimationFrame(render);
+
+    const now = performance.now();
+
+    // Limpar canvas
+    ctx.fillStyle = '#1a0f08';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Grid minimalista
+    ctx.strokeStyle = 'rgba(212, 163, 115, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= COLS; i++) {
+      ctx.moveTo(i * CELL, 0);
+      ctx.lineTo(i * CELL, canvas.height);
+    }
+    for (let j = 0; j <= ROWS; j++) {
+      ctx.moveTo(0, j * CELL);
+      ctx.lineTo(canvas.width, j * CELL);
+    }
+    ctx.stroke();
+
+    // Renderizar rastros (com limpeza mais agressiva)
+    for (let i = trailSegments.length - 1; i >= 0; i--) {
+      const trail = trailSegments[i];
+
+      // Só renderizar se life > 0.05 para evitar pixels órfãos
+      if (trail.life > 0.05) {
+        ctx.fillStyle = `rgba(139, 116, 87, ${trail.life * 0.25})`;
+        ctx.fillRect(trail.x * CELL + CELL * 0.25, trail.y * CELL + CELL * 0.25,
+                     CELL * 0.5, CELL * 0.5);
+      }
+
+      trail.life -= 0.04; // Decay mais rápido
+      if (trail.life <= 0.05) trailSegments.splice(i, 1);
+    }
+
+    // Renderizar especiarias
+    for (const spice of spices) {
+      spice.glow = Math.sin(now / 200) * 0.5 + 0.5;
+      ctx.save();
+      ctx.shadowColor = '#FFDFA3';
+      ctx.shadowBlur = 8 + spice.glow * 8;
+      ctx.fillStyle = '#D4A373';
+      ctx.globalAlpha = 0.7 + spice.glow * 0.3;
+      ctx.fillRect(spice.x * CELL + CELL * 0.25, spice.y * CELL + CELL * 0.25,
+                   CELL * 0.5, CELL * 0.5);
+      ctx.restore();
+    }
+
+    // Renderizar Slow Dive powerup
+    if (slowDivePowerup) {
+      slowDivePowerup.pulse = Math.sin(now / 150) * 0.5 + 0.5;
+      ctx.save();
+      ctx.shadowColor = '#66ddff';
+      ctx.shadowBlur = 10 + slowDivePowerup.pulse * 10;
+      ctx.fillStyle = '#66ddff';
+      ctx.globalAlpha = 0.6 + slowDivePowerup.pulse * 0.4;
+      ctx.fillRect(slowDivePowerup.x * CELL + CELL * 0.2,
+                   slowDivePowerup.y * CELL + CELL * 0.2,
+                   CELL * 0.6, CELL * 0.6);
+      ctx.restore();
+    }
+
+    // Renderizar Shai-Hulud (Alpha Worm)
+    if (shaiHuludActive && shaiHuludPosition) {
+      ctx.save();
+      ctx.shadowColor = '#ff4500';
+      ctx.shadowBlur = 25;
+      ctx.fillStyle = '#8b4513';
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(shaiHuludPosition.x * CELL + CELL / 2,
+              shaiHuludPosition.y * CELL + CELL / 2,
+              CELL * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Renderizar serpente
+    serpent.forEach((seg, i) => {
+      const alpha = isSlowDiveActive ? 0.4 : 1.0;
+      const size = i === 0 ? 0.75 : 0.65;
+
+      ctx.save();
+      if (isSlowDiveActive) {
+        ctx.shadowColor = '#66ddff';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#66ddff';
+      } else {
+        ctx.shadowColor = '#FFDFA3';
+        ctx.shadowBlur = i === 0 ? 10 : 5;
+        ctx.fillStyle = '#D4A373';
+      }
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(seg.x * CELL + CELL * (1 - size) / 2,
+                   seg.y * CELL + CELL * (1 - size) / 2,
+                   CELL * size, CELL * size);
+      ctx.restore();
+    });
+
+    // Renderizar partículas (com limpeza mais agressiva)
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+
+      // Só renderizar se life > 0.05 para evitar pixels órfãos
+      if (p.life > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+        ctx.restore();
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.15;
+      p.life -= 0.03; // Decay mais rápido
+
+      if (p.life <= 0.05) particles.splice(i, 1);
+    }
+  }
+
+  // ============================================================
+  // CONTROLES
+  // ============================================================
+  function setDirection(newDir) {
+    // Prevenir reversão 180 graus
+    if (direction.x + newDir.x === 0 && direction.y + newDir.y === 0) return;
+    nextDirection = newDir;
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      if (introScreen.classList.contains('show')) {
+        startBtn.click();
+      } else if (gameoverScreen.classList.contains('show')) {
+        restartBtn.click();
+      }
+    }
+
+    const keyMap = {
+      'ArrowUp': {x: 0, y: -1},
+      'w': {x: 0, y: -1},
+      'W': {x: 0, y: -1},
+      'ArrowDown': {x: 0, y: 1},
+      's': {x: 0, y: 1},
+      'S': {x: 0, y: 1},
+      'ArrowLeft': {x: -1, y: 0},
+      'a': {x: -1, y: 0},
+      'A': {x: -1, y: 0},
+      'ArrowRight': {x: 1, y: 0},
+      'd': {x: 1, y: 0},
+      'D': {x: 1, y: 0}
+    };
+
+    if (keyMap[e.key]) {
+      setDirection(keyMap[e.key]);
+    }
+  });
+
+  // Custom cursor
+  document.addEventListener('mousemove', (e) => {
+    cursorEl.style.left = e.clientX - 4 + 'px';
+    cursorEl.style.top = e.clientY - 4 + 'px';
+  });
+
+  // Botões
+  startBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', restartGame);
+
+  // ============================================================
+  // INICIAR
+  // ============================================================
+  introScreen.classList.add('show');
+  requestAnimationFrame(render);
+
+  // Iniciar efeito de respiração do deserto
+  startDesertBreathing();
+})();
+</script>
+</body>
+</html>
