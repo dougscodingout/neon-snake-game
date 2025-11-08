@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>🏜️ Sand Serpent: A Serpente de Arrakis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+<style>
+  * {box-sizing:border-box; margin:0; padding:0;}
+
+  @font-face {
+    font-family: 'DuneFont';
+    src: local('Georgia'), local('Garamond');
+  }
+
+  html, body {
+    height: 100%;
+    background: linear-gradient(180deg, #1a1208 0%, #2c1e0e 50%, #1a1208 100%);
+    font-family: 'DuneFont', Georgia, serif;
+    color: #d2a679;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* Tela inicial */
+  .intro-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    max-width: 800px;
+    animation: fadeIn 2s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .intro-screen h1 {
+    font-size: 48px;
+    font-weight: 300;
+    letter-spacing: 8px;
+    margin-bottom: 40px;
+    text-shadow: 0 0 20px rgba(210, 166, 121, 0.5);
+    animation: glow 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from { text-shadow: 0 0 10px rgba(210, 166, 121, 0.3); }
+    to { text-shadow: 0 0 30px rgba(210, 166, 121, 0.8); }
+  }
+
+  .prophecy {
+    font-size: 20px;
+    font-style: italic;
+    line-height: 1.8;
+    margin-bottom: 60px;
+    opacity: 0.9;
+    max-width: 600px;
+  }
+
+  .start-btn {
+    font-family: 'DuneFont', Georgia, serif;
+    font-size: 24px;
+    padding: 20px 60px;
+    background: transparent;
+    border: 2px solid #d2a679;
+    color: #d2a679;
+    cursor: pointer;
+    letter-spacing: 4px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .start-btn:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(210, 166, 121, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s;
+    border-radius: 50%;
+  }
+
+  .start-btn:hover:before {
+    width: 300px;
+    height: 300px;
+  }
+
+  .start-btn:hover {
+    background: rgba(210, 166, 121, 0.1);
+    box-shadow: 0 0 30px rgba(210, 166, 121, 0.5);
+    transform: scale(1.05);
+  }
+
+  /* Game area */
+  .game-container {
+    display: none;
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  canvas {
+    border: 3px solid rgba(210, 166, 121, 0.3);
+    box-shadow: 0 0 40px rgba(210, 166, 121, 0.2), inset 0 0 60px rgba(0, 0, 0, 0.8);
+    background: radial-gradient(ellipse at 30% 30%, #2c1e0e, #1a1208);
+  }
+
+  /* HUD */
+  .hud {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .hud-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hud-label {
+    font-size: 14px;
+    letter-spacing: 3px;
+    opacity: 0.6;
+    text-transform: uppercase;
+  }
+
+  .hud-value {
+    font-size: 32px;
+    font-weight: 300;
+    text-shadow: 0 0 10px rgba(210, 166, 121, 0.5);
+  }
+
+  .vibration-meter {
+    width: 120px;
+    height: 120px;
+    position: relative;
+  }
+
+  .vibration-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid rgba(210, 166, 121, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .vibration-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(0deg, #d2a679 0%, #b58b57 100%);
+    transition: height 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .vibration-level {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: 300;
+    z-index: 10;
+  }
+
+  /* Power-up indicator */
+  .powerup-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 18px;
+    padding: 15px 25px;
+    background: rgba(210, 166, 121, 0.1);
+    border: 2px solid #d2a679;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .powerup-indicator.active {
+    opacity: 1;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(210, 166, 121, 0.3); }
+    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(210, 166, 121, 0.6); }
+  }
+
+  /* Game over screen */
+  .gameover-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    max-width: 800px;
+    animation: fadeIn 1.5s ease-in;
+  }
+
+  .gameover-screen h2 {
+    font-size: 36px;
+    font-weight: 300;
+    letter-spacing: 6px;
+    margin-bottom: 30px;
+    opacity: 0.9;
+  }
+
+  .final-prophecy {
+    font-size: 22px;
+    font-style: italic;
+    line-height: 1.8;
+    margin-bottom: 40px;
+    opacity: 0.8;
+    max-width: 600px;
+  }
+
+  .final-stats {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 40px;
+    font-size: 18px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .stat-label {
+    opacity: 0.6;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 300;
+  }
+
+  /* Sand particles overlay */
+  .sand-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.3;
+  }
+
+  /* Custom cursor */
+  .custom-cursor {
+    position: fixed;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(210, 166, 121, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 10000;
+    transition: transform 0.1s ease;
+  }
+
+  /* Event notification */
+  .event-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    letter-spacing: 4px;
+    padding: 30px 60px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #d2a679;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 9999;
+    transition: opacity 0.5s;
+  }
+
+  .event-notification.show {
+    opacity: 1;
+    animation: eventPulse 0.5s ease-in-out;
+  }
+
+  @keyframes eventPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.1); }
+  }
+
+  /* Responsive */
+  @media(max-width: 768px) {
+    .intro-screen h1 { font-size: 32px; }
+    .prophecy { font-size: 16px; }
+    .start-btn { font-size: 18px; padding: 15px 40px; }
+    canvas { max-width: 95vw; max-height: 60vh; }
+  }
+
+  .hidden { display: none !important; }
+  .show { display: flex !important; }
+</style>
+</head>
+<body>
+  <div class="custom-cursor" id="cursor"></div>
+  <canvas class="sand-overlay" id="sandOverlay"></canvas>
+  <div class="event-notification" id="eventNotification"></div>
+  <div class="powerup-indicator" id="powerupIndicator">SLOW DIVE ATIVO</div>
+
+  <div class="container">
+    <!-- Tela inicial -->
+    <div class="intro-screen" id="introScreen">
+      <h1>SAND SERPENT</h1>
+      <p class="prophecy" id="openingProphecy">"Aquele que caminha nas dunas deve aprender o silêncio, pois o deserto escuta cada movimento."</p>
+      <button class="start-btn" id="startBtn">DESPERTAR</button>
+    </div>
+
+    <!-- Game area -->
+    <div class="game-container" id="gameContainer">
+      <canvas id="gameCanvas" width="800" height="800"></canvas>
+
+      <div class="hud">
+        <div class="hud-item">
+          <div class="hud-label">Especiaria</div>
+          <div class="hud-value" id="spiceCount">0</div>
+        </div>
+
+        <div class="hud-item">
+          <div class="hud-label">Vibração</div>
+          <div class="vibration-meter">
+            <div class="vibration-circle">
+              <div class="vibration-fill" id="vibrationFill"></div>
+            </div>
+            <div class="vibration-level" id="vibrationLevel">0</div>
+          </div>
+        </div>
+
+        <div class="hud-item">
+          <div class="hud-label">Ciclos</div>
+          <div class="hud-value" id="cycleCount">1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game over screen -->
+    <div class="gameover-screen" id="gameoverScreen">
+      <h2>O DESERTO RECLAMA</h2>
+      <p class="final-prophecy" id="finalProphecy"></p>
+      <div class="final-stats">
+        <div class="stat-item">
+          <div class="stat-label">ESPECIARIA</div>
+          <div class="stat-value" id="finalSpice">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">CICLOS</div>
+          <div class="stat-value" id="finalCycles">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">SILÊNCIO</div>
+          <div class="stat-value" id="silenceScore">0%</div>
+        </div>
+      </div>
+      <button class="start-btn" id="restartBtn">REEMERGIR</button>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  'use strict';
+
+  // ============================================================
+  // CONFIGURAÇÕES E CONSTANTES
+  // ============================================================
+
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d', {alpha: false});
+  const sandCanvas = document.getElementById('sandOverlay');
+  const sandCtx = sandCanvas.getContext('2d');
+
+  const COLS = 40;
+  const ROWS = 40;
+  const CELL = canvas.width / COLS;
+
+  // Elementos UI
+  const introScreen = document.getElementById('introScreen');
+  const gameContainer = document.getElementById('gameContainer');
+  const gameoverScreen = document.getElementById('gameoverScreen');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const spiceCountEl = document.getElementById('spiceCount');
+  const cycleCountEl = document.getElementById('cycleCount');
+  const vibrationLevelEl = document.getElementById('vibrationLevel');
+  const vibrationFillEl = document.getElementById('vibrationFill');
+  const powerupIndicatorEl = document.getElementById('powerupIndicator');
+  const eventNotificationEl = document.getElementById('eventNotification');
+  const openingProphecyEl = document.getElementById('openingProphecy');
+  const finalProphecyEl = document.getElementById('finalProphecy');
+  const finalSpiceEl = document.getElementById('finalSpice');
+  const finalCyclesEl = document.getElementById('finalCycles');
+  const silenceScoreEl = document.getElementById('silenceScore');
+  const cursorEl = document.getElementById('cursor');
+
+  // ============================================================
+  // FRASES PROFÉTICAS
+  // ============================================================
+
+  const OPENING_PROPHECIES = [
+    "Aquele que caminha nas dunas deve aprender o silêncio, pois o deserto escuta cada movimento.",
+    "A especiaria é vida, mas a vida atrai a morte. Mova-se com sabedoria.",
+    "O verme conhece o ritmo das areias. Você deve aprender este ritmo.",
+    "Cada vibração é uma oração ao deserto. Reze com cuidado.",
+    "O poder está no som que você não fez."
+  ];
+
+  const ENDING_PROPHECIES = [
+    "O deserto sempre vence. Mas você deixou sua marca nas areias.",
+    "Silêncio é sabedoria. Vibração é destino. Você encontrou seu equilíbrio?",
+    "A especiaria revelou sua verdadeira natureza. O deserto não esquece.",
+    "Cada grão de areia é um batimento do tempo. Seu tempo terminou.",
+    "Aquele que silencia, escuta o deserto. Você ouviu?",
+    "O verme maior sempre vem. Era apenas uma questão de tempo.",
+    "A vibração é o chamado dos deuses antigos. Eles responderam.",
+    "Nas dunas, não há vencedores. Apenas sobreviventes temporários."
+  ];
+
+  // ============================================================
+  // ESTADO DO JOGO
+  // ============================================================
+
+  let serpent = [];
+  let direction = {x: 1, y: 0};
+  let nextDirection = {x: 1, y: 0};
+  let spices = [];
+  let slowDivePowerup = null;
+  let particles = [];
+  let sandParticles = [];
+  let trailSegments = [];
+
+  let spiceCount = 0;
+  let cycleCount = 1;
+  let vibrationLevel = 0;
+  let targetVibration = 0;
+  let gameOver = false;
+  let gameLoop = null;
+  let isSlowDiveActive = false;
+  let slowDiveEnd = 0;
+  let lastMoveTime = 0;
+  let totalMoves = 0;
+  let silentMoves = 0;
+
+  // Eventos ambientais
+  let sandstormActive = false;
+  let sandstormEnd = 0;
+  let alphaWormWarning = false;
+  let alphaWormActive = false;
+  let alphaWormPosition = null;
+
+  // Áudio
+  let audioCtx = null;
+  let droneOsc = null;
+  let droneGain = null;
+  let breathOsc = null;
+  let breathGain = null;
+  let windOsc = null;
+  let windGain = null;
+  let master = null;
+  let lowPassFilter = null;
+
+  const MAX_VIBRATION = 100;
+  const VIBRATION_DECAY = 0.5;
+  const VIBRATION_PER_MOVE = 8;
+  const VIBRATION_PER_SPICE = 15;
+  const SANDSTORM_THRESHOLD = 70;
+  const ALPHA_WORM_THRESHOLD = 85;
+
+  // ============================================================
+  // SISTEMA DE ÁUDIO
+  // ============================================================
+
+  function setupAudio() {
+    if (audioCtx) return;
+
+    audioCtx = new AudioContext();
+
+    // Master gain
+    master = audioCtx.createGain();
+    master.gain.value = 0.3;
+    master.connect(audioCtx.destination);
+
+    // Low-pass filter para Slow Dive
+    lowPassFilter = audioCtx.createBiquadFilter();
+    lowPassFilter.type = 'lowpass';
+    lowPassFilter.frequency.value = 20000;
+    lowPassFilter.Q.value = 1;
+    lowPassFilter.connect(master);
+
+    // Drone grave (som de fundo constante)
+    droneOsc = audioCtx.createOscillator();
+    droneOsc.type = 'sine';
+    droneOsc.frequency.value = 55; // A1
+    droneGain = audioCtx.createGain();
+    droneGain.gain.value = 0.15;
+    droneOsc.connect(droneGain);
+    droneGain.connect(lowPassFilter);
+    droneOsc.start();
+
+    // Respiração (pulso lento)
+    breathOsc = audioCtx.createOscillator();
+    breathOsc.type = 'sine';
+    breathOsc.frequency.value = 110; // A2
+    breathGain = audioCtx.createGain();
+    breathGain.gain.value = 0;
+    breathOsc.connect(breathGain);
+    breathGain.connect(lowPassFilter);
+    breathOsc.start();
+
+    // Vento (ruído)
+    windOsc = audioCtx.createOscillator();
+    windOsc.type = 'sawtooth';
+    windOsc.frequency.value = 80;
+    windGain = audioCtx.createGain();
+    windGain.gain.value = 0.05;
+    windOsc.connect(windGain);
+    windGain.connect(lowPassFilter);
+    windOsc.start();
+
+    // Loop de respiração
+    breathLoop();
+  }
+
+  function breathLoop() {
+    if (!audioCtx || !breathGain) return;
+    const now = audioCtx.currentTime;
+    breathGain.gain.setValueAtTime(0, now);
+    breathGain.gain.linearRampToValueAtTime(0.08, now + 2);
+    breathGain.gain.linearRampToValueAtTime(0, now + 4);
+    setTimeout(breathLoop, 4000);
+  }
+
+  function updateAudioByVibration() {
+    if (!audioCtx || !droneGain || !windGain) return;
+
+    const intensity = vibrationLevel / MAX_VIBRATION;
+    const now = audioCtx.currentTime;
+
+    // Quanto maior a vibração, mais intenso o som
+    droneGain.gain.linearRampToValueAtTime(0.15 + intensity * 0.2, now + 0.5);
+    windGain.gain.linearRampToValueAtTime(0.05 + intensity * 0.15, now + 0.5);
+
+    if (droneOsc) {
+      droneOsc.frequency.linearRampToValueAtTime(55 + intensity * 30, now + 0.5);
+    }
+  }
+
+  function playSpiceSound() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 880; // A5
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.2;
+    osc.connect(gain);
+    gain.connect(lowPassFilter);
+    const now = audioCtx.currentTime;
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+
+  function playSlowDiveSound() {
+    if (!audioCtx || !lowPassFilter) return;
+    const now = audioCtx.currentTime;
+    lowPassFilter.frequency.linearRampToValueAtTime(300, now + 0.5);
+  }
+
+  function exitSlowDiveSound() {
+    if (!audioCtx || !lowPassFilter) return;
+    const now = audioCtx.currentTime;
+    lowPassFilter.frequency.linearRampToValueAtTime(20000, now + 0.8);
+  }
+
+  function playEventSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.3;
+    osc.connect(gain);
+    gain.connect(lowPassFilter);
+    const now = audioCtx.currentTime;
+
+    if (type === 'sandstorm') {
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.linearRampToValueAtTime(80, now + 1);
+      gain.gain.linearRampToValueAtTime(0.01, now + 1);
+      osc.start(now);
+      osc.stop(now + 1);
+    } else if (type === 'alphaworm') {
+      osc.frequency.setValueAtTime(40, now);
+      osc.frequency.linearRampToValueAtTime(80, now + 0.5);
+      osc.frequency.linearRampToValueAtTime(40, now + 1);
+      gain.gain.linearRampToValueAtTime(0.01, now + 1);
+      osc.start(now);
+      osc.stop(now + 1);
+    }
+  }
+
+  function playDeathSound() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 110;
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.4;
+    osc.connect(gain);
+    gain.connect(master);
+    const now = audioCtx.currentTime;
+    osc.frequency.exponentialRampToValueAtTime(30, now + 1.5);
+    gain.gain.linearRampToValueAtTime(0.01, now + 1.5);
+    osc.start(now);
+    osc.stop(now + 1.5);
+  }
+
+  // ============================================================
+  // FUNÇÕES AUXILIARES
+  // ============================================================
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function randomChoice(array) {
+    return array[Math.floor(Math.random() * array.length)];
+  }
+
+  function validCell(x, y) {
+    return x >= 0 && x < COLS && y >= 0 && y < ROWS;
+  }
+
+  function cellOccupied(x, y) {
+    return serpent.some(seg => seg.x === x && seg.y === y);
+  }
+
+  function distance(x1, y1, x2, y2) {
+    return Math.hypot(x2 - x1, y2 - y1);
+  }
+
+  function showEvent(text) {
+    eventNotificationEl.textContent = text;
+    eventNotificationEl.classList.add('show');
+    setTimeout(() => {
+      eventNotificationEl.classList.remove('show');
+    }, 2000);
+  }
+
+  // ============================================================
+  // SPAWN DE ELEMENTOS
+  // ============================================================
+
+  function spawnSpice() {
+    let tries = 0;
+    while (tries++ < 100) {
+      const x = randomInt(0, COLS - 1);
+      const y = randomInt(0, ROWS - 1);
+      if (!cellOccupied(x, y) && !spices.some(s => s.x === x && s.y === y)) {
+        spices.push({x, y, glow: 0});
+        return;
+      }
+    }
+  }
+
+  function spawnSlowDivePowerup() {
+    if (slowDivePowerup) return;
+    let tries = 0;
+    while (tries++ < 100) {
+      const x = randomInt(0, COLS - 1);
+      const y = randomInt(0, ROWS - 1);
+      if (!cellOccupied(x, y) && !spices.some(s => s.x === x && s.y === y)) {
+        slowDivePowerup = {x, y, pulse: 0};
+        return;
+      }
+    }
+  }
+
+  function spawnParticles(x, y, count, color, speed = 3) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: x * CELL + CELL / 2,
+        y: y * CELL + CELL / 2,
+        vx: (Math.random() - 0.5) * speed,
+        vy: (Math.random() - 0.5) * speed - 1,
+        life: 1,
+        color: color
+      });
+    }
+  }
+
+  // ============================================================
+  // INICIALIZAÇÃO DO JOGO
+  // ============================================================
+
+  function initGame() {
+    serpent = [{x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2)}];
+    direction = {x: 1, y: 0};
+    nextDirection = {x: 1, y: 0};
+    spices = [];
+    particles = [];
+    trailSegments = [];
+
+    spiceCount = 0;
+    cycleCount = 1;
+    vibrationLevel = 0;
+    targetVibration = 0;
+    gameOver = false;
+    isSlowDiveActive = false;
+    slowDiveEnd = 0;
+    lastMoveTime = 0;
+    totalMoves = 0;
+    silentMoves = 0;
+
+    sandstormActive = false;
+    alphaWormWarning = false;
+    alphaWormActive = false;
+    alphaWormPosition = null;
+    slowDivePowerup = null;
+
+    spiceCountEl.textContent = spiceCount;
+    cycleCountEl.textContent = cycleCount;
+    vibrationLevelEl.textContent = '0';
+    vibrationFillEl.style.height = '0%';
+    powerupIndicatorEl.classList.remove('active');
+
+    // Spawn inicial
+    for (let i = 0; i < 3; i++) spawnSpice();
+
+    // Escolher profecia aleatória
+    openingProphecyEl.textContent = randomChoice(OPENING_PROPHECIES);
+
+    setupAudio();
+  }
+
+  function startGame() {
+    introScreen.classList.remove('show');
+    introScreen.classList.add('hidden');
+    gameContainer.classList.add('show');
+    gameContainer.classList.remove('hidden');
+
+    initGame();
+
+    if (gameLoop) clearInterval(gameLoop);
+    gameLoop = setInterval(gameStep, 150);
+  }
+
+  function restartGame() {
+    gameoverScreen.classList.remove('show');
+    gameoverScreen.classList.add('hidden');
+    gameContainer.classList.add('show');
+    gameContainer.classList.remove('hidden');
+
+    initGame();
+
+    if (gameLoop) clearInterval(gameLoop);
+    gameLoop = setInterval(gameStep, 150);
+  }
+
+  // ============================================================
+  // GAME LOOP
+  // ============================================================
+
+  function gameStep() {
+    if (gameOver) return;
+
+    totalMoves++;
+
+    // Atualizar direção
+    if ((direction.x === 0 && nextDirection.x !== 0) ||
+        (direction.y === 0 && nextDirection.y !== 0)) {
+      direction = nextDirection;
+    }
+
+    // Nova posição da cabeça
+    const head = {
+      x: serpent[0].x + direction.x,
+      y: serpent[0].y + direction.y
+    };
+
+    // Verificar colisão com bordas
+    if (!validCell(head.x, head.y)) {
+      endGame();
+      return;
+    }
+
+    // Verificar colisão com corpo (só se não estiver em Slow Dive)
+    if (!isSlowDiveActive && cellOccupied(head.x, head.y)) {
+      endGame();
+      return;
+    }
+
+    // Adicionar nova posição
+    serpent.unshift(head);
+
+    // Adicionar rastro
+    if (serpent.length > 1) {
+      trailSegments.push({
+        x: serpent[1].x,
+        y: serpent[1].y,
+        life: 1
+      });
+    }
+
+    // Aumentar vibração pelo movimento
+    if (!isSlowDiveActive) {
+      targetVibration = Math.min(MAX_VIBRATION, targetVibration + VIBRATION_PER_MOVE);
+      if (vibrationLevel < 20) silentMoves++;
+    }
+
+    // Verificar coleta de especiaria
+    let collected = false;
+    for (let i = spices.length - 1; i >= 0; i--) {
+      if (head.x === spices[i].x && head.y === spices[i].y) {
+        spices.splice(i, 1);
+        spiceCount++;
+        spiceCountEl.textContent = spiceCount;
+
+        targetVibration = Math.min(MAX_VIBRATION, targetVibration + VIBRATION_PER_SPICE);
+        playSpiceSound();
+        spawnParticles(head.x, head.y, 20, '#d2a679', 4);
+        collected = true;
+
+        // Spawn nova especiaria
+        spawnSpice();
+
+        // A cada 5 especiarias, chance de spawn de Slow Dive
+        if (spiceCount % 5 === 0 && Math.random() < 0.6) {
+          spawnSlowDivePowerup();
+        }
+
+        // A cada 10 especiarias, novo ciclo
+        if (spiceCount % 10 === 0) {
+          cycleCount++;
+          cycleCountEl.textContent = cycleCount;
+          showEvent('NOVO CICLO');
+        }
+      }
+    }
+
+    // Verificar coleta de Slow Dive
+    if (slowDivePowerup && head.x === slowDivePowerup.x && head.y === slowDivePowerup.y) {
+      activateSlowDive();
+      slowDivePowerup = null;
+    }
+
+    // Se não coletou especiaria, remover cauda
+    if (!collected) {
+      serpent.pop();
+    }
+
+    // Decair vibração naturalmente
+    if (!isSlowDiveActive) {
+      targetVibration = Math.max(0, targetVibration - VIBRATION_DECAY);
+    } else {
+      targetVibration = Math.max(0, targetVibration - VIBRATION_DECAY * 3);
+    }
+
+    // Atualizar Slow Dive
+    if (isSlowDiveActive && Date.now() >= slowDiveEnd) {
+      deactivateSlowDive();
+    }
+
+    // Verificar eventos ambientais
+    checkEnvironmentalEvents();
+
+    updateVibrationUI();
+  }
+
+  // ============================================================
+  // SLOW DIVE
+  // ============================================================
+
+  function activateSlowDive() {
+    isSlowDiveActive = true;
+    slowDiveEnd = Date.now() + 5000;
+    powerupIndicatorEl.classList.add('active');
+    playSlowDiveSound();
+    showEvent('SLOW DIVE');
+
+    // Reduzir vibração imediatamente
+    targetVibration = Math.max(0, targetVibration - 40);
+
+    // Efeito visual
+    canvas.style.filter = 'hue-rotate(180deg) saturate(0.6)';
+  }
+
+  function deactivateSlowDive() {
+    isSlowDiveActive = false;
+    powerupIndicatorEl.classList.remove('active');
+    exitSlowDiveSound();
+    canvas.style.filter = '';
+  }
+
+  // ============================================================
+  // EVENTOS AMBIENTAIS
+  // ============================================================
+
+  function checkEnvironmentalEvents() {
+    const now = Date.now();
+
+    // Sandstorm
+    if (!sandstormActive && vibrationLevel >= SANDSTORM_THRESHOLD && Math.random() < 0.02) {
+      triggerSandstorm();
+    }
+
+    if (sandstormActive && now >= sandstormEnd) {
+      sandstormActive = false;
+    }
+
+    // Alpha Worm Warning
+    if (!alphaWormWarning && vibrationLevel >= ALPHA_WORM_THRESHOLD) {
+      alphaWormWarning = true;
+      showEvent('O VERME DESPERTA');
+      playEventSound('alphaworm');
+
+      setTimeout(() => {
+        if (vibrationLevel >= ALPHA_WORM_THRESHOLD - 10) {
+          triggerAlphaWorm();
+        }
+        alphaWormWarning = false;
+      }, 3000);
+    }
+  }
+
+  function triggerSandstorm() {
+    sandstormActive = true;
+    sandstormEnd = Date.now() + 5000;
+    showEvent('TEMPESTADE DE AREIA');
+    playEventSound('sandstorm');
+
+    // Spawn partículas extras
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8,
+        life: 1,
+        color: '#b58b57'
+      });
+    }
+  }
+
+  function triggerAlphaWorm() {
+    alphaWormActive = true;
+
+    // Spawn Alpha Worm na borda
+    const side = randomInt(0, 3);
+    if (side === 0) alphaWormPosition = {x: randomInt(0, COLS - 1), y: 0};
+    else if (side === 1) alphaWormPosition = {x: COLS - 1, y: randomInt(0, ROWS - 1)};
+    else if (side === 2) alphaWormPosition = {x: randomInt(0, COLS - 1), y: ROWS - 1};
+    else alphaWormPosition = {x: 0, y: randomInt(0, ROWS - 1)};
+
+    showEvent('SHAI-HULUD');
+
+    // Alpha Worm se aproxima do jogador
+    const approachInterval = setInterval(() => {
+      if (!alphaWormPosition || gameOver) {
+        clearInterval(approachInterval);
+        return;
+      }
+
+      const head = serpent[0];
+      const dx = head.x - alphaWormPosition.x;
+      const dy = head.y - alphaWormPosition.y;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        alphaWormPosition.x += dx > 0 ? 1 : -1;
+      } else {
+        alphaWormPosition.y += dy > 0 ? 1 : -1;
+      }
+
+      // Verificar colisão
+      if (alphaWormPosition.x === head.x && alphaWormPosition.y === head.y) {
+        endGame();
+        clearInterval(approachInterval);
+      }
+
+      // Spawn partículas
+      spawnParticles(alphaWormPosition.x, alphaWormPosition.y, 5, '#8b4513', 2);
+
+      // Desaparecer após 10 segundos
+      setTimeout(() => {
+        alphaWormActive = false;
+        alphaWormPosition = null;
+        clearInterval(approachInterval);
+      }, 10000);
+    }, 300);
+  }
+
+  // ============================================================
+  // UI E VIBRAÇÃO
+  // ============================================================
+
+  function updateVibrationUI() {
+    // Smooth transition
+    vibrationLevel += (targetVibration - vibrationLevel) * 0.2;
+
+    const percentage = Math.round((vibrationLevel / MAX_VIBRATION) * 100);
+    vibrationLevelEl.textContent = Math.round(vibrationLevel);
+    vibrationFillEl.style.height = percentage + '%';
+
+    // Cores baseadas no nível
+    if (vibrationLevel < 30) {
+      vibrationFillEl.style.background = 'linear-gradient(0deg, #d2a679 0%, #b58b57 100%)';
+      vibrationFillEl.style.boxShadow = 'none';
+    } else if (vibrationLevel < 70) {
+      vibrationFillEl.style.background = 'linear-gradient(0deg, #d2a679 0%, #c99a6e 100%)';
+      vibrationFillEl.style.boxShadow = '0 0 20px rgba(210, 166, 121, 0.5)';
+    } else {
+      vibrationFillEl.style.background = 'linear-gradient(0deg, #d2a679 0%, #ff8c00 100%)';
+      vibrationFillEl.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.8)';
+    }
+
+    updateAudioByVibration();
+  }
+
+  // ============================================================
+  // FIM DE JOGO
+  // ============================================================
+
+  function endGame() {
+    gameOver = true;
+    clearInterval(gameLoop);
+    gameLoop = null;
+
+    playDeathSound();
+
+    // Calcular estatísticas
+    const silencePercentage = totalMoves > 0 ? Math.round((silentMoves / totalMoves) * 100) : 0;
+
+    // Atualizar tela final
+    finalProphecyEl.textContent = randomChoice(ENDING_PROPHECIES);
+    finalSpiceEl.textContent = spiceCount;
+    finalCyclesEl.textContent = cycleCount;
+    silenceScoreEl.textContent = silencePercentage + '%';
+
+    // Transição
+    setTimeout(() => {
+      gameContainer.classList.remove('show');
+      gameContainer.classList.add('hidden');
+      gameoverScreen.classList.add('show');
+      gameoverScreen.classList.remove('hidden');
+    }, 1500);
+  }
+
+  // ============================================================
+  // RENDERIZAÇÃO
+  // ============================================================
+
+  function render() {
+    requestAnimationFrame(render);
+
+    const now = performance.now();
+
+    // Limpar canvas principal
+    ctx.fillStyle = '#1a1208';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Grid sutil
+    ctx.strokeStyle = 'rgba(210, 166, 121, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < COLS; i++) {
+      ctx.moveTo(i * CELL, 0);
+      ctx.lineTo(i * CELL, canvas.height);
+    }
+    for (let j = 0; j < ROWS; j++) {
+      ctx.moveTo(0, j * CELL);
+      ctx.lineTo(canvas.width, j * CELL);
+    }
+    ctx.stroke();
+
+    // Renderizar rastros
+    for (let i = trailSegments.length - 1; i >= 0; i--) {
+      const trail = trailSegments[i];
+      ctx.fillStyle = `rgba(181, 139, 87, ${trail.life * 0.3})`;
+      ctx.fillRect(trail.x * CELL + CELL * 0.2, trail.y * CELL + CELL * 0.2,
+                   CELL * 0.6, CELL * 0.6);
+      trail.life -= 0.02;
+      if (trail.life <= 0) trailSegments.splice(i, 1);
+    }
+
+    // Renderizar especiarias
+    for (const spice of spices) {
+      spice.glow = Math.sin(now / 200) * 0.5 + 0.5;
+      ctx.save();
+      ctx.shadowColor = '#d2a679';
+      ctx.shadowBlur = 10 + spice.glow * 10;
+      ctx.fillStyle = '#d2a679';
+      ctx.globalAlpha = 0.8 + spice.glow * 0.2;
+      ctx.beginPath();
+      ctx.arc(spice.x * CELL + CELL / 2, spice.y * CELL + CELL / 2,
+              CELL * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Renderizar Slow Dive powerup
+    if (slowDivePowerup) {
+      slowDivePowerup.pulse = Math.sin(now / 150) * 0.5 + 0.5;
+      ctx.save();
+      ctx.shadowColor = '#66ddff';
+      ctx.shadowBlur = 15 + slowDivePowerup.pulse * 15;
+      ctx.fillStyle = '#66ddff';
+      ctx.globalAlpha = 0.7 + slowDivePowerup.pulse * 0.3;
+      ctx.beginPath();
+      ctx.arc(slowDivePowerup.x * CELL + CELL / 2,
+              slowDivePowerup.y * CELL + CELL / 2,
+              CELL * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Renderizar Alpha Worm
+    if (alphaWormActive && alphaWormPosition) {
+      ctx.save();
+      ctx.shadowColor = '#8b4513';
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = '#8b4513';
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.arc(alphaWormPosition.x * CELL + CELL / 2,
+              alphaWormPosition.y * CELL + CELL / 2,
+              CELL * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Renderizar serpente
+    serpent.forEach((seg, i) => {
+      const alpha = isSlowDiveActive ? 0.3 : 1.0;
+      const size = i === 0 ? 0.7 : 0.6;
+
+      ctx.save();
+      ctx.shadowColor = isSlowDiveActive ? '#66ddff' : '#d2a679';
+      ctx.shadowBlur = isSlowDiveActive ? 20 : 10;
+      ctx.fillStyle = isSlowDiveActive ? '#66ddff' : '#d2a679';
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(seg.x * CELL + CELL * (1 - size) / 2,
+                   seg.y * CELL + CELL * (1 - size) / 2,
+                   CELL * size, CELL * size);
+      ctx.restore();
+    });
+
+    // Renderizar partículas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, 3, 3);
+      ctx.restore();
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2; // gravidade
+      p.life -= 0.02;
+
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Efeito de tempestade
+    if (sandstormActive) {
+      ctx.fillStyle = 'rgba(181, 139, 87, 0.2)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Renderizar partículas de areia no overlay
+    renderSandOverlay();
+  }
+
+  function renderSandOverlay() {
+    sandCanvas.width = window.innerWidth;
+    sandCanvas.height = window.innerHeight;
+
+    // Gerar partículas flutuantes
+    if (Math.random() < 0.3) {
+      sandParticles.push({
+        x: Math.random() * sandCanvas.width,
+        y: -10,
+        vy: Math.random() * 2 + 0.5,
+        vx: (Math.random() - 0.5) * 0.5,
+        size: Math.random() * 2 + 1,
+        life: 1
+      });
+    }
+
+    sandCtx.clearRect(0, 0, sandCanvas.width, sandCanvas.height);
+
+    for (let i = sandParticles.length - 1; i >= 0; i--) {
+      const p = sandParticles[i];
+      sandCtx.save();
+      sandCtx.globalAlpha = p.life * 0.4;
+      sandCtx.fillStyle = '#d2a679';
+      sandCtx.beginPath();
+      sandCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      sandCtx.fill();
+      sandCtx.restore();
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.005;
+
+      if (p.y > sandCanvas.height || p.life <= 0) {
+        sandParticles.splice(i, 1);
+      }
+    }
+  }
+
+  // ============================================================
+  // CONTROLES
+  // ============================================================
+
+  function setDirection(newDir) {
+    // Prevenir reversão 180 graus
+    if (direction.x + newDir.x === 0 && direction.y + newDir.y === 0) return;
+    nextDirection = newDir;
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      if (introScreen.classList.contains('show')) {
+        startBtn.click();
+      } else if (gameoverScreen.classList.contains('show')) {
+        restartBtn.click();
+      }
+    }
+
+    const keyMap = {
+      'ArrowUp': {x: 0, y: -1},
+      'w': {x: 0, y: -1},
+      'W': {x: 0, y: -1},
+      'ArrowDown': {x: 0, y: 1},
+      's': {x: 0, y: 1},
+      'S': {x: 0, y: 1},
+      'ArrowLeft': {x: -1, y: 0},
+      'a': {x: -1, y: 0},
+      'A': {x: -1, y: 0},
+      'ArrowRight': {x: 1, y: 0},
+      'd': {x: 1, y: 0},
+      'D': {x: 1, y: 0}
+    };
+
+    if (keyMap[e.key]) {
+      setDirection(keyMap[e.key]);
+    }
+  });
+
+  // Custom cursor
+  document.addEventListener('mousemove', (e) => {
+    cursorEl.style.left = e.clientX + 'px';
+    cursorEl.style.top = e.clientY + 'px';
+  });
+
+  // Botões
+  startBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', restartGame);
+
+  // ============================================================
+  // INICIAR
+  // ============================================================
+
+  introScreen.classList.add('show');
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
