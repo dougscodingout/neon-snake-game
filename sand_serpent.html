@@ -2,20 +2,20 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8" />
-<title>🏜️ Sand Serpent: A Serpente de Arrakis</title>
+<title>🏜️ Sand Serpent v2.0 — A Serpente de Arrakis</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <style>
   * {box-sizing:border-box; margin:0; padding:0;}
 
   @font-face {
     font-family: 'DuneFont';
-    src: local('Georgia'), local('Garamond');
+    src: local('Courier New'), local('Consolas'), monospace;
   }
 
   html, body {
     height: 100%;
-    background: linear-gradient(180deg, #1a1208 0%, #2c1e0e 50%, #1a1208 100%);
-    font-family: 'DuneFont', Georgia, serif;
+    background: #0a0604;
+    font-family: 'DuneFont', 'Courier New', monospace;
     color: #d2a679;
     overflow: hidden;
     cursor: none;
@@ -30,6 +30,25 @@
     position: relative;
   }
 
+  /* CRT Scanlines effect */
+  .crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15),
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+    z-index: 9998;
+    opacity: 0.3;
+  }
+
   /* Tela inicial */
   .intro-screen {
     display: flex;
@@ -39,73 +58,57 @@
     text-align: center;
     padding: 40px;
     max-width: 800px;
-    animation: fadeIn 2s ease-in;
+    animation: fadeIn 1.5s ease-in;
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .intro-screen h1 {
-    font-size: 48px;
-    font-weight: 300;
-    letter-spacing: 8px;
-    margin-bottom: 40px;
-    text-shadow: 0 0 20px rgba(210, 166, 121, 0.5);
-    animation: glow 3s ease-in-out infinite alternate;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 0 #000, 0 0 20px rgba(210, 166, 121, 0.6);
+    animation: glitch 5s infinite;
   }
 
-  @keyframes glow {
-    from { text-shadow: 0 0 10px rgba(210, 166, 121, 0.3); }
-    to { text-shadow: 0 0 30px rgba(210, 166, 121, 0.8); }
+  @keyframes glitch {
+    0%, 90%, 100% { transform: translate(0); }
+    91% { transform: translate(-2px, 1px); }
+    92% { transform: translate(2px, -1px); }
+    93% { transform: translate(0); }
   }
 
   .prophecy {
-    font-size: 20px;
-    font-style: italic;
-    line-height: 1.8;
-    margin-bottom: 60px;
-    opacity: 0.9;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 40px;
+    opacity: 0.8;
     max-width: 600px;
+    font-family: monospace;
   }
 
   .start-btn {
-    font-family: 'DuneFont', Georgia, serif;
-    font-size: 24px;
-    padding: 20px 60px;
+    font-family: 'DuneFont', monospace;
+    font-size: 20px;
+    padding: 15px 50px;
     background: transparent;
-    border: 2px solid #d2a679;
+    border: 3px solid #d2a679;
     color: #d2a679;
     cursor: pointer;
-    letter-spacing: 4px;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .start-btn:before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: rgba(210, 166, 121, 0.1);
-    transform: translate(-50%, -50%);
-    transition: width 0.4s, height 0.4s;
-    border-radius: 50%;
-  }
-
-  .start-btn:hover:before {
-    width: 300px;
-    height: 300px;
+    letter-spacing: 3px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-weight: bold;
   }
 
   .start-btn:hover {
-    background: rgba(210, 166, 121, 0.1);
-    box-shadow: 0 0 30px rgba(210, 166, 121, 0.5);
-    transform: scale(1.05);
+    background: #d2a679;
+    color: #0a0604;
+    box-shadow: 0 0 20px rgba(210, 166, 121, 0.8);
   }
 
   /* Game area */
@@ -114,100 +117,122 @@
     position: relative;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
   }
 
   canvas {
-    border: 3px solid rgba(210, 166, 121, 0.3);
-    box-shadow: 0 0 40px rgba(210, 166, 121, 0.2), inset 0 0 60px rgba(0, 0, 0, 0.8);
-    background: radial-gradient(ellipse at 30% 30%, #2c1e0e, #1a1208);
+    border: 4px solid rgba(210, 166, 121, 0.4);
+    box-shadow: 0 0 30px rgba(210, 166, 121, 0.3), inset 0 0 50px rgba(0, 0, 0, 0.9);
+    background: #0a0604;
+    image-rendering: pixelated;
   }
 
-  /* HUD */
+  /* HUD - Agora no topo, compacto */
   .hud {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    gap: 60px;
+    gap: 30px;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 10px 25px;
+    background: rgba(10, 6, 4, 0.85);
+    border: 2px solid rgba(210, 166, 121, 0.4);
+    z-index: 100;
+    font-size: 14px;
+    letter-spacing: 2px;
   }
 
   .hud-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   .hud-label {
-    font-size: 14px;
-    letter-spacing: 3px;
     opacity: 0.6;
     text-transform: uppercase;
+    font-size: 11px;
   }
 
   .hud-value {
-    font-size: 32px;
-    font-weight: 300;
-    text-shadow: 0 0 10px rgba(210, 166, 121, 0.5);
+    font-size: 18px;
+    font-weight: bold;
   }
 
-  .vibration-meter {
+  .vibration-bar {
     width: 120px;
-    height: 120px;
-    position: relative;
-  }
-
-  .vibration-circle {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    border: 3px solid rgba(210, 166, 121, 0.3);
+    height: 12px;
+    background: rgba(210, 166, 121, 0.2);
+    border: 1px solid rgba(210, 166, 121, 0.4);
     position: relative;
     overflow: hidden;
   }
 
   .vibration-fill {
     position: absolute;
-    bottom: 0;
     left: 0;
-    width: 100%;
-    height: 0%;
-    background: linear-gradient(0deg, #d2a679 0%, #b58b57 100%);
-    transition: height 0.3s ease, box-shadow 0.3s ease;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: #d2a679;
+    transition: width 0.2s ease, background 0.3s;
   }
 
-  .vibration-level {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    font-weight: 300;
-    z-index: 10;
+  .vibration-fill.danger {
+    background: #ff4500;
+    box-shadow: 0 0 10px #ff4500;
+  }
+
+  /* Notificações periféricas (canto superior direito) */
+  .notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 12px 20px;
+    background: rgba(10, 6, 4, 0.9);
+    border: 2px solid #d2a679;
+    font-size: 14px;
+    letter-spacing: 2px;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.4s ease;
+    z-index: 1000;
+    max-width: 250px;
+    text-align: right;
+  }
+
+  .notification.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .notification.warning {
+    border-color: #ff4500;
+    color: #ff4500;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.5);
   }
 
   /* Power-up indicator */
   .powerup-indicator {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    font-size: 18px;
-    padding: 15px 25px;
-    background: rgba(210, 166, 121, 0.1);
-    border: 2px solid #d2a679;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    padding: 10px 20px;
+    background: rgba(102, 221, 255, 0.2);
+    border: 2px solid #66ddff;
+    color: #66ddff;
     opacity: 0;
     transition: opacity 0.3s;
+    letter-spacing: 2px;
+    text-transform: uppercase;
   }
 
   .powerup-indicator.active {
     opacity: 1;
-    animation: pulse 1s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(210, 166, 121, 0.3); }
-    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(210, 166, 121, 0.6); }
   }
 
   /* Game over screen */
@@ -223,27 +248,27 @@
   }
 
   .gameover-screen h2 {
-    font-size: 36px;
-    font-weight: 300;
-    letter-spacing: 6px;
-    margin-bottom: 30px;
-    opacity: 0.9;
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 5px;
+    margin-bottom: 25px;
+    text-transform: uppercase;
   }
 
   .final-prophecy {
-    font-size: 22px;
+    font-size: 18px;
     font-style: italic;
-    line-height: 1.8;
-    margin-bottom: 40px;
+    line-height: 1.6;
+    margin-bottom: 30px;
     opacity: 0.8;
     max-width: 600px;
   }
 
   .final-stats {
     display: flex;
-    gap: 40px;
-    margin-bottom: 40px;
-    font-size: 18px;
+    gap: 30px;
+    margin-bottom: 30px;
+    font-size: 16px;
   }
 
   .stat-item {
@@ -254,794 +279,599 @@
 
   .stat-label {
     opacity: 0.6;
-    font-size: 14px;
+    font-size: 12px;
     letter-spacing: 2px;
   }
 
   .stat-value {
-    font-size: 28px;
-    font-weight: 300;
-  }
-
-  /* Sand particles overlay */
-  .sand-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.3;
+    font-size: 24px;
+    font-weight: bold;
   }
 
   /* Custom cursor */
   .custom-cursor {
     position: fixed;
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(210, 166, 121, 0.6);
-    border-radius: 50%;
+    width: 8px;
+    height: 8px;
+    background: #d2a679;
+    border: 1px solid #d2a679;
     pointer-events: none;
     z-index: 10000;
     transition: transform 0.1s ease;
   }
 
-  /* Event notification */
-  .event-notification {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 32px;
-    letter-spacing: 4px;
-    padding: 30px 60px;
-    background: rgba(0, 0, 0, 0.8);
-    border: 2px solid #d2a679;
-    opacity: 0;
-    pointer-events: none;
-    z-index: 9999;
-    transition: opacity 0.5s;
-  }
-
-  .event-notification.show {
-    opacity: 1;
-    animation: eventPulse 0.5s ease-in-out;
-  }
-
-  @keyframes eventPulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); }
-    50% { transform: translate(-50%, -50%) scale(1.1); }
-  }
+  /* Utility classes */
+  .hidden { display: none !important; }
+  .show { display: flex !important; }
 
   /* Responsive */
   @media(max-width: 768px) {
-    .intro-screen h1 { font-size: 32px; }
-    .prophecy { font-size: 16px; }
-    .start-btn { font-size: 18px; padding: 15px 40px; }
-    canvas { max-width: 95vw; max-height: 60vh; }
+    .intro-screen h1 { font-size: 28px; }
+    .prophecy { font-size: 14px; }
+    .hud { font-size: 11px; gap: 15px; }
   }
-
-  .hidden { display: none !important; }
-  .show { display: flex !important; }
 </style>
 </head>
 <body>
-  <div class="custom-cursor" id="cursor"></div>
-  <canvas class="sand-overlay" id="sandOverlay"></canvas>
-  <div class="event-notification" id="eventNotification"></div>
-  <div class="powerup-indicator" id="powerupIndicator">SLOW DIVE ATIVO</div>
 
-  <div class="container">
-    <!-- Tela inicial -->
-    <div class="intro-screen" id="introScreen">
-      <h1>SAND SERPENT</h1>
-      <p class="prophecy" id="openingProphecy">"Aquele que caminha nas dunas deve aprender o silêncio, pois o deserto escuta cada movimento."</p>
-      <button class="start-btn" id="startBtn">DESPERTAR</button>
-    </div>
+<div class="crt-overlay"></div>
+<div class="custom-cursor"></div>
+<div class="notification" id="notification"></div>
 
-    <!-- Game area -->
-    <div class="game-container" id="gameContainer">
-      <canvas id="gameCanvas" width="800" height="800"></canvas>
-
-      <div class="hud">
-        <div class="hud-item">
-          <div class="hud-label">Especiaria</div>
-          <div class="hud-value" id="spiceCount">0</div>
-        </div>
-
-        <div class="hud-item">
-          <div class="hud-label">Vibração</div>
-          <div class="vibration-meter">
-            <div class="vibration-circle">
-              <div class="vibration-fill" id="vibrationFill"></div>
-            </div>
-            <div class="vibration-level" id="vibrationLevel">0</div>
-          </div>
-        </div>
-
-        <div class="hud-item">
-          <div class="hud-label">Ciclos</div>
-          <div class="hud-value" id="cycleCount">1</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Game over screen -->
-    <div class="gameover-screen" id="gameoverScreen">
-      <h2>O DESERTO RECLAMA</h2>
-      <p class="final-prophecy" id="finalProphecy"></p>
-      <div class="final-stats">
-        <div class="stat-item">
-          <div class="stat-label">ESPECIARIA</div>
-          <div class="stat-value" id="finalSpice">0</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-label">CICLOS</div>
-          <div class="stat-value" id="finalCycles">0</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-label">SILÊNCIO</div>
-          <div class="stat-value" id="silenceScore">0%</div>
-        </div>
-      </div>
-      <button class="start-btn" id="restartBtn">REEMERGIR</button>
-    </div>
+<div class="container">
+  <!-- Tela inicial -->
+  <div class="intro-screen show" id="introScreen">
+    <h1>SAND SERPENT</h1>
+    <p class="prophecy">"O deserto não perdoa aqueles que fazem barulho.<br/>Mova-se com sabedoria. Colete especiarias.<br/>Sobreviva ao Shai-Hulud."</p>
+    <button class="start-btn" id="startBtn">[ INICIAR ]</button>
   </div>
 
+  <!-- Game -->
+  <div class="game-container" id="gameContainer">
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">ESPECIARIA</span>
+        <span class="hud-value" id="spiceCount">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">VIBRAÇÃO</span>
+        <div class="vibration-bar">
+          <div class="vibration-fill" id="vibrationFill"></div>
+        </div>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">CICLOS</span>
+        <span class="hud-value" id="cycleCount">0</span>
+      </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div class="powerup-indicator" id="powerupIndicator">SLOW DIVE ATIVO</div>
+  </div>
+
+  <!-- Game over -->
+  <div class="gameover-screen" id="gameoverScreen">
+    <h2>O DESERTO VENCEU</h2>
+    <p class="final-prophecy" id="finalProphecy"></p>
+    <div class="final-stats">
+      <div class="stat-item">
+        <span class="stat-label">ESPECIARIAS</span>
+        <span class="stat-value" id="finalSpice">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">CICLOS</span>
+        <span class="stat-value" id="finalCycles">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">SILÊNCIO</span>
+        <span class="stat-value" id="silenceScore">0%</span>
+      </div>
+    </div>
+    <button class="start-btn" id="restartBtn">[ REEMERGIR ]</button>
+  </div>
+</div>
+
 <script>
-(()=>{
+(function() {
   'use strict';
 
   // ============================================================
-  // CONFIGURAÇÕES E CONSTANTES
+  // ELEMENTOS DOM
   // ============================================================
-
   const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d', {alpha: false});
-  const sandCanvas = document.getElementById('sandOverlay');
-  const sandCtx = sandCanvas.getContext('2d');
-
-  const COLS = 40;
-  const ROWS = 40;
-  const CELL = canvas.width / COLS;
-
-  // Elementos UI
+  const ctx = canvas.getContext('2d');
   const introScreen = document.getElementById('introScreen');
   const gameContainer = document.getElementById('gameContainer');
   const gameoverScreen = document.getElementById('gameoverScreen');
   const startBtn = document.getElementById('startBtn');
   const restartBtn = document.getElementById('restartBtn');
+  const cursorEl = document.querySelector('.custom-cursor');
+  const notificationEl = document.getElementById('notification');
+  const powerupIndicatorEl = document.getElementById('powerupIndicator');
+
+  // HUD
   const spiceCountEl = document.getElementById('spiceCount');
   const cycleCountEl = document.getElementById('cycleCount');
-  const vibrationLevelEl = document.getElementById('vibrationLevel');
   const vibrationFillEl = document.getElementById('vibrationFill');
-  const powerupIndicatorEl = document.getElementById('powerupIndicator');
-  const eventNotificationEl = document.getElementById('eventNotification');
-  const openingProphecyEl = document.getElementById('openingProphecy');
+
+  // Final
   const finalProphecyEl = document.getElementById('finalProphecy');
   const finalSpiceEl = document.getElementById('finalSpice');
   const finalCyclesEl = document.getElementById('finalCycles');
   const silenceScoreEl = document.getElementById('silenceScore');
-  const cursorEl = document.getElementById('cursor');
 
   // ============================================================
-  // FRASES PROFÉTICAS
+  // CONFIGURAÇÕES DO JOGO
   // ============================================================
+  const CELL = 20;
+  const COLS = 30;
+  const ROWS = 25;
+  canvas.width = COLS * CELL;
+  canvas.height = ROWS * CELL;
 
-  const OPENING_PROPHECIES = [
-    "Aquele que caminha nas dunas deve aprender o silêncio, pois o deserto escuta cada movimento.",
-    "A especiaria é vida, mas a vida atrai a morte. Mova-se com sabedoria.",
-    "O verme conhece o ritmo das areias. Você deve aprender este ritmo.",
-    "Cada vibração é uma oração ao deserto. Reze com cuidado.",
-    "O poder está no som que você não fez."
-  ];
-
-  const ENDING_PROPHECIES = [
-    "O deserto sempre vence. Mas você deixou sua marca nas areias.",
-    "Silêncio é sabedoria. Vibração é destino. Você encontrou seu equilíbrio?",
-    "A especiaria revelou sua verdadeira natureza. O deserto não esquece.",
-    "Cada grão de areia é um batimento do tempo. Seu tempo terminou.",
-    "Aquele que silencia, escuta o deserto. Você ouviu?",
-    "O verme maior sempre vem. Era apenas uma questão de tempo.",
-    "A vibração é o chamado dos deuses antigos. Eles responderam.",
-    "Nas dunas, não há vencedores. Apenas sobreviventes temporários."
-  ];
+  const INITIAL_SPEED = 150; // ms por movimento
+  const MAX_VIBRATION = 100;
+  const VIBRATION_DECAY = 0.5;
+  const VIBRATION_PER_MOVE = 3;
+  const SPICE_VIBRATION_BOOST = 15;
+  const SLOW_DIVE_DURATION = 5000;
+  const SHAI_HULUD_THRESHOLD = 75; // Vibração que spawna o verme
 
   // ============================================================
   // ESTADO DO JOGO
   // ============================================================
-
   let serpent = [];
   let direction = {x: 1, y: 0};
   let nextDirection = {x: 1, y: 0};
   let spices = [];
   let slowDivePowerup = null;
-  let particles = [];
-  let sandParticles = [];
-  let trailSegments = [];
-
-  let spiceCount = 0;
-  let cycleCount = 1;
   let vibrationLevel = 0;
   let targetVibration = 0;
+  let spiceCount = 0;
+  let cycleCount = 0;
+  let gameSpeed = INITIAL_SPEED;
   let gameOver = false;
   let gameLoop = null;
   let isSlowDiveActive = false;
-  let slowDiveEnd = 0;
-  let lastMoveTime = 0;
+  let slowDiveTimer = null;
   let totalMoves = 0;
   let silentMoves = 0;
+  let particles = [];
+  let trailSegments = [];
 
-  // Eventos ambientais
-  let sandstormActive = false;
-  let sandstormEnd = 0;
-  let alphaWormWarning = false;
-  let alphaWormActive = false;
-  let alphaWormPosition = null;
-
-  // Áudio
-  let audioCtx = null;
-  let droneOsc = null;
-  let droneGain = null;
-  let breathOsc = null;
-  let breathGain = null;
-  let windOsc = null;
-  let windGain = null;
-  let master = null;
-  let lowPassFilter = null;
-
-  const MAX_VIBRATION = 100;
-  const VIBRATION_DECAY = 0.5;
-  const VIBRATION_PER_MOVE = 8;
-  const VIBRATION_PER_SPICE = 15;
-  const SANDSTORM_THRESHOLD = 70;
-  const ALPHA_WORM_THRESHOLD = 85;
+  // Shai-Hulud (Alpha Worm)
+  let shaiHuludActive = false;
+  let shaiHuludPosition = null;
+  let shaiHuludApproachSpeed = 400; // ms entre movimentos
+  let shaiHuludInterval = null;
 
   // ============================================================
-  // SISTEMA DE ÁUDIO
+  // ÁUDIO 8-BIT PROCEDURAL
   // ============================================================
+  let audioContext = null;
+  let masterGain = null;
+  let ambienceOsc = null;
+  let tensionOsc = null;
+  let tensionGain = null;
 
-  function setupAudio() {
-    if (audioCtx) return;
+  function initAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioContext.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(audioContext.destination);
 
-    audioCtx = new AudioContext();
+    // Drone grave de fundo (8-bit style)
+    ambienceOsc = audioContext.createOscillator();
+    ambienceOsc.type = 'square'; // Som 8-bit característico
+    ambienceOsc.frequency.value = 55; // A1 - muito grave
+    const ambienceGain = audioContext.createGain();
+    ambienceGain.gain.value = 0.08;
+    ambienceOsc.connect(ambienceGain);
+    ambienceGain.connect(masterGain);
+    ambienceOsc.start();
 
-    // Master gain
-    master = audioCtx.createGain();
-    master.gain.value = 0.3;
-    master.connect(audioCtx.destination);
-
-    // Low-pass filter para Slow Dive
-    lowPassFilter = audioCtx.createBiquadFilter();
-    lowPassFilter.type = 'lowpass';
-    lowPassFilter.frequency.value = 20000;
-    lowPassFilter.Q.value = 1;
-    lowPassFilter.connect(master);
-
-    // Drone grave (som de fundo constante)
-    droneOsc = audioCtx.createOscillator();
-    droneOsc.type = 'sine';
-    droneOsc.frequency.value = 55; // A1
-    droneGain = audioCtx.createGain();
-    droneGain.gain.value = 0.15;
-    droneOsc.connect(droneGain);
-    droneGain.connect(lowPassFilter);
-    droneOsc.start();
-
-    // Respiração (pulso lento)
-    breathOsc = audioCtx.createOscillator();
-    breathOsc.type = 'sine';
-    breathOsc.frequency.value = 110; // A2
-    breathGain = audioCtx.createGain();
-    breathGain.gain.value = 0;
-    breathOsc.connect(breathGain);
-    breathGain.connect(lowPassFilter);
-    breathOsc.start();
-
-    // Vento (ruído)
-    windOsc = audioCtx.createOscillator();
-    windOsc.type = 'sawtooth';
-    windOsc.frequency.value = 80;
-    windGain = audioCtx.createGain();
-    windGain.gain.value = 0.05;
-    windOsc.connect(windGain);
-    windGain.connect(lowPassFilter);
-    windOsc.start();
-
-    // Loop de respiração
-    breathLoop();
-  }
-
-  function breathLoop() {
-    if (!audioCtx || !breathGain) return;
-    const now = audioCtx.currentTime;
-    breathGain.gain.setValueAtTime(0, now);
-    breathGain.gain.linearRampToValueAtTime(0.08, now + 2);
-    breathGain.gain.linearRampToValueAtTime(0, now + 4);
-    setTimeout(breathLoop, 4000);
+    // Camada de tensão (aumenta com vibração)
+    tensionOsc = audioContext.createOscillator();
+    tensionOsc.type = 'sawtooth';
+    tensionOsc.frequency.value = 110;
+    tensionGain = audioContext.createGain();
+    tensionGain.gain.value = 0;
+    tensionOsc.connect(tensionGain);
+    tensionGain.connect(masterGain);
+    tensionOsc.start();
   }
 
   function updateAudioByVibration() {
-    if (!audioCtx || !droneGain || !windGain) return;
+    if (!audioContext) return;
 
-    const intensity = vibrationLevel / MAX_VIBRATION;
-    const now = audioCtx.currentTime;
+    const vibRatio = vibrationLevel / MAX_VIBRATION;
 
-    // Quanto maior a vibração, mais intenso o som
-    droneGain.gain.linearRampToValueAtTime(0.15 + intensity * 0.2, now + 0.5);
-    windGain.gain.linearRampToValueAtTime(0.05 + intensity * 0.15, now + 0.5);
+    // Tensão cresce com vibração
+    tensionGain.gain.linearRampToValueAtTime(
+      vibRatio * 0.15,
+      audioContext.currentTime + 0.1
+    );
 
-    if (droneOsc) {
-      droneOsc.frequency.linearRampToValueAtTime(55 + intensity * 30, now + 0.5);
-    }
+    // Frequência varia sutilmente
+    tensionOsc.frequency.linearRampToValueAtTime(
+      110 + (vibRatio * 40),
+      audioContext.currentTime + 0.1
+    );
   }
 
-  function playSpiceSound() {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = 880; // A5
-    const gain = audioCtx.createGain();
+  // Sons 8-bit para eventos
+  function playBlip(freq, duration = 0.1) {
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
     gain.gain.value = 0.2;
     osc.connect(gain);
-    gain.connect(lowPassFilter);
-    const now = audioCtx.currentTime;
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
-    osc.start(now);
-    osc.stop(now + 0.4);
+    gain.connect(masterGain);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    osc.stop(audioContext.currentTime + duration);
   }
 
-  function playSlowDiveSound() {
-    if (!audioCtx || !lowPassFilter) return;
-    const now = audioCtx.currentTime;
-    lowPassFilter.frequency.linearRampToValueAtTime(300, now + 0.5);
+  function playCollectSound() {
+    // Arpeggio ascendente 8-bit
+    [330, 440, 550].forEach((freq, i) => {
+      setTimeout(() => playBlip(freq, 0.08), i * 50);
+    });
   }
 
-  function exitSlowDiveSound() {
-    if (!audioCtx || !lowPassFilter) return;
-    const now = audioCtx.currentTime;
-    lowPassFilter.frequency.linearRampToValueAtTime(20000, now + 0.8);
+  function playPowerupSound() {
+    // Som de power-up descendente
+    [880, 660, 440, 330].forEach((freq, i) => {
+      setTimeout(() => playBlip(freq, 0.12), i * 60);
+    });
   }
 
-  function playEventSound(type) {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sawtooth';
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0.3;
-    osc.connect(gain);
-    gain.connect(lowPassFilter);
-    const now = audioCtx.currentTime;
-
-    if (type === 'sandstorm') {
-      osc.frequency.setValueAtTime(200, now);
-      osc.frequency.linearRampToValueAtTime(80, now + 1);
-      gain.gain.linearRampToValueAtTime(0.01, now + 1);
-      osc.start(now);
-      osc.stop(now + 1);
-    } else if (type === 'alphaworm') {
-      osc.frequency.setValueAtTime(40, now);
-      osc.frequency.linearRampToValueAtTime(80, now + 0.5);
-      osc.frequency.linearRampToValueAtTime(40, now + 1);
-      gain.gain.linearRampToValueAtTime(0.01, now + 1);
-      osc.start(now);
-      osc.stop(now + 1);
+  function playWarningSound() {
+    // Alerta grave pulsante
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => playBlip(110, 0.15), i * 150);
     }
   }
 
   function playDeathSound() {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
+    // Glissando descendente dramático
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.value = 110;
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0.4;
+    osc.frequency.value = 440;
+    gain.gain.value = 0.3;
     osc.connect(gain);
-    gain.connect(master);
-    const now = audioCtx.currentTime;
-    osc.frequency.exponentialRampToValueAtTime(30, now + 1.5);
-    gain.gain.linearRampToValueAtTime(0.01, now + 1.5);
-    osc.start(now);
-    osc.stop(now + 1.5);
+    gain.connect(masterGain);
+    osc.start();
+    osc.frequency.exponentialRampToValueAtTime(55, audioContext.currentTime + 1);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+    osc.stop(audioContext.currentTime + 1);
   }
 
   // ============================================================
-  // FUNÇÕES AUXILIARES
+  // UTILITIES
   // ============================================================
-
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  function randomChoice(array) {
-    return array[Math.floor(Math.random() * array.length)];
+  function randomChoice(arr) {
+    return arr[randomInt(0, arr.length - 1)];
   }
 
-  function validCell(x, y) {
-    return x >= 0 && x < COLS && y >= 0 && y < ROWS;
-  }
+  function showNotification(text, isWarning = false) {
+    notificationEl.textContent = text;
+    notificationEl.classList.toggle('warning', isWarning);
+    notificationEl.classList.add('show');
 
-  function cellOccupied(x, y) {
-    return serpent.some(seg => seg.x === x && seg.y === y);
-  }
-
-  function distance(x1, y1, x2, y2) {
-    return Math.hypot(x2 - x1, y2 - y1);
-  }
-
-  function showEvent(text) {
-    eventNotificationEl.textContent = text;
-    eventNotificationEl.classList.add('show');
     setTimeout(() => {
-      eventNotificationEl.classList.remove('show');
+      notificationEl.classList.remove('show');
     }, 2000);
   }
 
-  // ============================================================
-  // SPAWN DE ELEMENTOS
-  // ============================================================
-
-  function spawnSpice() {
-    let tries = 0;
-    while (tries++ < 100) {
-      const x = randomInt(0, COLS - 1);
-      const y = randomInt(0, ROWS - 1);
-      if (!cellOccupied(x, y) && !spices.some(s => s.x === x && s.y === y)) {
-        spices.push({x, y, glow: 0});
-        return;
-      }
-    }
-  }
-
-  function spawnSlowDivePowerup() {
-    if (slowDivePowerup) return;
-    let tries = 0;
-    while (tries++ < 100) {
-      const x = randomInt(0, COLS - 1);
-      const y = randomInt(0, ROWS - 1);
-      if (!cellOccupied(x, y) && !spices.some(s => s.x === x && s.y === y)) {
-        slowDivePowerup = {x, y, pulse: 0};
-        return;
-      }
-    }
-  }
-
-  function spawnParticles(x, y, count, color, speed = 3) {
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: x * CELL + CELL / 2,
-        y: y * CELL + CELL / 2,
-        vx: (Math.random() - 0.5) * speed,
-        vy: (Math.random() - 0.5) * speed - 1,
-        life: 1,
-        color: color
-      });
-    }
-  }
+  const ENDING_PROPHECIES = [
+    '"Aquele que silencia, escuta o deserto."',
+    '"Cada grão de areia é um batimento do tempo."',
+    '"A vibração é o chamado dos deuses antigos."',
+    '"O poder está no som que você não fez."',
+    '"A areia lembra de todos os que caíram."',
+    '"Shai-Hulud não esquece."'
+  ];
 
   // ============================================================
-  // INICIALIZAÇÃO DO JOGO
+  // INICIALIZAÇÃO
   // ============================================================
-
-  function initGame() {
+  function startGame() {
+    // Reset completo
     serpent = [{x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2)}];
     direction = {x: 1, y: 0};
     nextDirection = {x: 1, y: 0};
     spices = [];
-    particles = [];
-    trailSegments = [];
-
-    spiceCount = 0;
-    cycleCount = 1;
+    slowDivePowerup = null;
     vibrationLevel = 0;
     targetVibration = 0;
+    spiceCount = 0;
+    cycleCount = 0;
+    gameSpeed = INITIAL_SPEED;
     gameOver = false;
     isSlowDiveActive = false;
-    slowDiveEnd = 0;
-    lastMoveTime = 0;
     totalMoves = 0;
     silentMoves = 0;
+    particles = [];
+    trailSegments = [];
+    shaiHuludActive = false;
+    shaiHuludPosition = null;
 
-    sandstormActive = false;
-    alphaWormWarning = false;
-    alphaWormActive = false;
-    alphaWormPosition = null;
-    slowDivePowerup = null;
+    if (shaiHuludInterval) {
+      clearInterval(shaiHuludInterval);
+      shaiHuludInterval = null;
+    }
 
-    spiceCountEl.textContent = spiceCount;
-    cycleCountEl.textContent = cycleCount;
-    vibrationLevelEl.textContent = '0';
-    vibrationFillEl.style.height = '0%';
-    powerupIndicatorEl.classList.remove('active');
+    // Iniciar áudio
+    if (!audioContext) initAudio();
 
-    // Spawn inicial
+    // Spawnar especiarias iniciais
     for (let i = 0; i < 3; i++) spawnSpice();
 
-    // Escolher profecia aleatória
-    openingProphecyEl.textContent = randomChoice(OPENING_PROPHECIES);
-
-    setupAudio();
-  }
-
-  function startGame() {
+    // Transição de telas
     introScreen.classList.remove('show');
     introScreen.classList.add('hidden');
-    gameContainer.classList.add('show');
-    gameContainer.classList.remove('hidden');
-
-    initGame();
-
-    if (gameLoop) clearInterval(gameLoop);
-    gameLoop = setInterval(gameStep, 150);
-  }
-
-  function restartGame() {
     gameoverScreen.classList.remove('show');
     gameoverScreen.classList.add('hidden');
     gameContainer.classList.add('show');
     gameContainer.classList.remove('hidden');
 
-    initGame();
-
+    // Iniciar loop
     if (gameLoop) clearInterval(gameLoop);
-    gameLoop = setInterval(gameStep, 150);
+    gameLoop = setInterval(update, gameSpeed);
+  }
+
+  function restartGame() {
+    startGame();
   }
 
   // ============================================================
-  // GAME LOOP
+  // SPAWN DE ITENS
   // ============================================================
+  function spawnSpice() {
+    let pos;
+    let attempts = 0;
+    do {
+      pos = {x: randomInt(0, COLS - 1), y: randomInt(0, ROWS - 1)};
+      attempts++;
+    } while (
+      (serpent.some(seg => seg.x === pos.x && seg.y === pos.y) ||
+       spices.some(s => s.x === pos.x && s.y === pos.y) ||
+       (slowDivePowerup && slowDivePowerup.x === pos.x && slowDivePowerup.y === pos.y)) &&
+      attempts < 50
+    );
 
-  function gameStep() {
-    if (gameOver) return;
+    if (attempts < 50) {
+      spices.push({x: pos.x, y: pos.y, glow: 0});
+    }
+  }
 
-    totalMoves++;
+  function spawnSlowDivePowerup() {
+    if (slowDivePowerup) return; // Só um por vez
 
-    // Atualizar direção
-    if ((direction.x === 0 && nextDirection.x !== 0) ||
-        (direction.y === 0 && nextDirection.y !== 0)) {
-      direction = nextDirection;
+    let pos;
+    let attempts = 0;
+    do {
+      pos = {x: randomInt(0, COLS - 1), y: randomInt(0, ROWS - 1)};
+      attempts++;
+    } while (
+      (serpent.some(seg => seg.x === pos.x && seg.y === pos.y) ||
+       spices.some(s => s.x === pos.x && s.y === pos.y)) &&
+      attempts < 50
+    );
+
+    if (attempts < 50) {
+      slowDivePowerup = {x: pos.x, y: pos.y, pulse: 0};
+      showNotification('SLOW DIVE DETECTADO');
+    }
+  }
+
+  // ============================================================
+  // SHAI-HULUD (ALPHA WORM) - MECÂNICA CORRIGIDA
+  // ============================================================
+  function spawnShaiHulud() {
+    if (shaiHuludActive) return;
+
+    shaiHuludActive = true;
+    playWarningSound();
+    showNotification('SHAI-HULUD SE APROXIMA!', true);
+
+    // Spawna na borda oposta ao jogador
+    const head = serpent[0];
+    if (head.x < COLS / 2) {
+      shaiHuludPosition = {x: COLS - 1, y: randomInt(0, ROWS - 1)};
+    } else {
+      shaiHuludPosition = {x: 0, y: randomInt(0, ROWS - 1)};
     }
 
-    // Nova posição da cabeça
-    const head = {
-      x: serpent[0].x + direction.x,
-      y: serpent[0].y + direction.y
-    };
+    // Movimento em direção ao jogador
+    shaiHuludInterval = setInterval(() => {
+      if (!shaiHuludActive || gameOver || !shaiHuludPosition) {
+        clearInterval(shaiHuludInterval);
+        shaiHuludInterval = null;
+        return;
+      }
 
-    // Verificar colisão com bordas
-    if (!validCell(head.x, head.y)) {
-      endGame();
-      return;
-    }
+      const head = serpent[0];
+      const dx = head.x - shaiHuludPosition.x;
+      const dy = head.y - shaiHuludPosition.y;
 
-    // Verificar colisão com corpo (só se não estiver em Slow Dive)
-    if (!isSlowDiveActive && cellOccupied(head.x, head.y)) {
-      endGame();
-      return;
-    }
+      // Move em direção ao jogador
+      if (Math.abs(dx) > Math.abs(dy)) {
+        shaiHuludPosition.x += dx > 0 ? 1 : -1;
+      } else {
+        shaiHuludPosition.y += dy > 0 ? 1 : -1;
+      }
 
-    // Adicionar nova posição
-    serpent.unshift(head);
+      // Partículas de areia
+      spawnParticles(shaiHuludPosition.x, shaiHuludPosition.y, 3, '#8b4513', 2);
 
-    // Adicionar rastro
-    if (serpent.length > 1) {
-      trailSegments.push({
-        x: serpent[1].x,
-        y: serpent[1].y,
+      // Verificar colisão
+      if (shaiHuludPosition.x === head.x && shaiHuludPosition.y === head.y) {
+        endGame();
+      }
+    }, shaiHuludApproachSpeed);
+
+    // Desaparece após 12 segundos
+    setTimeout(() => {
+      shaiHuludActive = false;
+      shaiHuludPosition = null;
+      if (shaiHuludInterval) {
+        clearInterval(shaiHuludInterval);
+        shaiHuludInterval = null;
+      }
+      showNotification('SHAI-HULUD RETORNOU À AREIA');
+    }, 12000);
+  }
+
+  // ============================================================
+  // PARTÍCULAS
+  // ============================================================
+  function spawnParticles(gridX, gridY, count, color, spread) {
+    const centerX = gridX * CELL + CELL / 2;
+    const centerY = gridY * CELL + CELL / 2;
+
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: centerX,
+        y: centerY,
+        vx: (Math.random() - 0.5) * spread,
+        vy: (Math.random() - 0.5) * spread - 1,
+        color: color,
         life: 1
       });
     }
+  }
 
-    // Aumentar vibração pelo movimento
+  // ============================================================
+  // UPDATE LOOP
+  // ============================================================
+  function update() {
+    if (gameOver) return;
+
+    direction = {...nextDirection};
+    const head = {...serpent[0]};
+    head.x += direction.x;
+    head.y += direction.y;
+
+    // Wraparound
+    if (head.x < 0) head.x = COLS - 1;
+    if (head.x >= COLS) head.x = 0;
+    if (head.y < 0) head.y = ROWS - 1;
+    if (head.y >= ROWS) head.y = 0;
+
+    // Auto-colisão
+    if (serpent.some(seg => seg.x === head.x && seg.y === head.y)) {
+      endGame();
+      return;
+    }
+
+    serpent.unshift(head);
+
+    // Tracking de movimentos
+    totalMoves++;
+    if (vibrationLevel < 20) silentMoves++;
+
+    // Vibração por movimento
     if (!isSlowDiveActive) {
-      targetVibration = Math.min(MAX_VIBRATION, targetVibration + VIBRATION_PER_MOVE);
-      if (vibrationLevel < 20) silentMoves++;
+      targetVibration += VIBRATION_PER_MOVE;
     }
 
-    // Verificar coleta de especiaria
-    let collected = false;
-    for (let i = spices.length - 1; i >= 0; i--) {
-      if (head.x === spices[i].x && head.y === spices[i].y) {
-        spices.splice(i, 1);
-        spiceCount++;
-        spiceCountEl.textContent = spiceCount;
+    // Coleta de especiaria
+    const spiceIndex = spices.findIndex(s => s.x === head.x && s.y === head.y);
+    if (spiceIndex !== -1) {
+      spices.splice(spiceIndex, 1);
+      spiceCount++;
+      spiceCountEl.textContent = spiceCount;
+      playCollectSound();
+      spawnParticles(head.x, head.y, 8, '#d2a679', 3);
 
-        targetVibration = Math.min(MAX_VIBRATION, targetVibration + VIBRATION_PER_SPICE);
-        playSpiceSound();
-        spawnParticles(head.x, head.y, 20, '#d2a679', 4);
-        collected = true;
+      // Aumenta vibração
+      targetVibration += SPICE_VIBRATION_BOOST;
 
-        // Spawn nova especiaria
-        spawnSpice();
+      // Spawna nova especiaria
+      spawnSpice();
 
-        // A cada 5 especiarias, chance de spawn de Slow Dive
-        if (spiceCount % 5 === 0 && Math.random() < 0.6) {
-          spawnSlowDivePowerup();
-        }
-
-        // A cada 10 especiarias, novo ciclo
-        if (spiceCount % 10 === 0) {
-          cycleCount++;
-          cycleCountEl.textContent = cycleCount;
-          showEvent('NOVO CICLO');
-        }
+      // A cada 5 especiarias, spawna power-up
+      if (spiceCount % 5 === 0) {
+        spawnSlowDivePowerup();
       }
+    } else {
+      // Remove cauda se não comeu
+      const tail = serpent.pop();
+      trailSegments.push({x: tail.x, y: tail.y, life: 1});
     }
 
-    // Verificar coleta de Slow Dive
+    // Coleta de Slow Dive power-up
     if (slowDivePowerup && head.x === slowDivePowerup.x && head.y === slowDivePowerup.y) {
       activateSlowDive();
       slowDivePowerup = null;
     }
 
-    // Se não coletou especiaria, remover cauda
-    if (!collected) {
-      serpent.pop();
-    }
-
-    // Decair vibração naturalmente
+    // Decay de vibração
     if (!isSlowDiveActive) {
       targetVibration = Math.max(0, targetVibration - VIBRATION_DECAY);
     } else {
       targetVibration = Math.max(0, targetVibration - VIBRATION_DECAY * 3);
     }
 
-    // Atualizar Slow Dive
-    if (isSlowDiveActive && Date.now() >= slowDiveEnd) {
-      deactivateSlowDive();
-    }
-
-    // Verificar eventos ambientais
-    checkEnvironmentalEvents();
-
+    // Atualizar vibração UI
     updateVibrationUI();
+
+    // Spawnar Shai-Hulud se vibração alta
+    if (vibrationLevel >= SHAI_HULUD_THRESHOLD && !shaiHuludActive) {
+      spawnShaiHulud();
+    }
+
+    // Incrementar ciclos
+    cycleCount++;
+    cycleCountEl.textContent = cycleCount;
   }
 
   // ============================================================
-  // SLOW DIVE
+  // POWER-UP: SLOW DIVE
   // ============================================================
-
   function activateSlowDive() {
+    if (isSlowDiveActive) return;
+
     isSlowDiveActive = true;
-    slowDiveEnd = Date.now() + 5000;
+    playPowerupSound();
     powerupIndicatorEl.classList.add('active');
-    playSlowDiveSound();
-    showEvent('SLOW DIVE');
+    showNotification('MERGULHO PROFUNDO');
 
-    // Reduzir vibração imediatamente
-    targetVibration = Math.max(0, targetVibration - 40);
+    // Reduz vibração instantaneamente
+    targetVibration = Math.max(0, targetVibration - 30);
 
-    // Efeito visual
-    canvas.style.filter = 'hue-rotate(180deg) saturate(0.6)';
-  }
-
-  function deactivateSlowDive() {
-    isSlowDiveActive = false;
-    powerupIndicatorEl.classList.remove('active');
-    exitSlowDiveSound();
-    canvas.style.filter = '';
-  }
-
-  // ============================================================
-  // EVENTOS AMBIENTAIS
-  // ============================================================
-
-  function checkEnvironmentalEvents() {
-    const now = Date.now();
-
-    // Sandstorm
-    if (!sandstormActive && vibrationLevel >= SANDSTORM_THRESHOLD && Math.random() < 0.02) {
-      triggerSandstorm();
-    }
-
-    if (sandstormActive && now >= sandstormEnd) {
-      sandstormActive = false;
-    }
-
-    // Alpha Worm Warning
-    if (!alphaWormWarning && vibrationLevel >= ALPHA_WORM_THRESHOLD) {
-      alphaWormWarning = true;
-      showEvent('O VERME DESPERTA');
-      playEventSound('alphaworm');
-
-      setTimeout(() => {
-        if (vibrationLevel >= ALPHA_WORM_THRESHOLD - 10) {
-          triggerAlphaWorm();
-        }
-        alphaWormWarning = false;
-      }, 3000);
-    }
-  }
-
-  function triggerSandstorm() {
-    sandstormActive = true;
-    sandstormEnd = Date.now() + 5000;
-    showEvent('TEMPESTADE DE AREIA');
-    playEventSound('sandstorm');
-
-    // Spawn partículas extras
-    for (let i = 0; i < 50; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 8,
-        vy: (Math.random() - 0.5) * 8,
-        life: 1,
-        color: '#b58b57'
-      });
-    }
-  }
-
-  function triggerAlphaWorm() {
-    alphaWormActive = true;
-
-    // Spawn Alpha Worm na borda
-    const side = randomInt(0, 3);
-    if (side === 0) alphaWormPosition = {x: randomInt(0, COLS - 1), y: 0};
-    else if (side === 1) alphaWormPosition = {x: COLS - 1, y: randomInt(0, ROWS - 1)};
-    else if (side === 2) alphaWormPosition = {x: randomInt(0, COLS - 1), y: ROWS - 1};
-    else alphaWormPosition = {x: 0, y: randomInt(0, ROWS - 1)};
-
-    showEvent('SHAI-HULUD');
-
-    // Alpha Worm se aproxima do jogador
-    const approachInterval = setInterval(() => {
-      if (!alphaWormPosition || gameOver) {
-        clearInterval(approachInterval);
-        return;
-      }
-
-      const head = serpent[0];
-      const dx = head.x - alphaWormPosition.x;
-      const dy = head.y - alphaWormPosition.y;
-
-      if (Math.abs(dx) > Math.abs(dy)) {
-        alphaWormPosition.x += dx > 0 ? 1 : -1;
-      } else {
-        alphaWormPosition.y += dy > 0 ? 1 : -1;
-      }
-
-      // Verificar colisão
-      if (alphaWormPosition.x === head.x && alphaWormPosition.y === head.y) {
-        endGame();
-        clearInterval(approachInterval);
-      }
-
-      // Spawn partículas
-      spawnParticles(alphaWormPosition.x, alphaWormPosition.y, 5, '#8b4513', 2);
-
-      // Desaparecer após 10 segundos
-      setTimeout(() => {
-        alphaWormActive = false;
-        alphaWormPosition = null;
-        clearInterval(approachInterval);
-      }, 10000);
-    }, 300);
+    // Timer
+    slowDiveTimer = setTimeout(() => {
+      isSlowDiveActive = false;
+      powerupIndicatorEl.classList.remove('active');
+    }, SLOW_DIVE_DURATION);
   }
 
   // ============================================================
   // UI E VIBRAÇÃO
   // ============================================================
-
   function updateVibrationUI() {
     // Smooth transition
-    vibrationLevel += (targetVibration - vibrationLevel) * 0.2;
+    vibrationLevel += (targetVibration - vibrationLevel) * 0.15;
+    vibrationLevel = Math.min(MAX_VIBRATION, vibrationLevel);
 
-    const percentage = Math.round((vibrationLevel / MAX_VIBRATION) * 100);
-    vibrationLevelEl.textContent = Math.round(vibrationLevel);
-    vibrationFillEl.style.height = percentage + '%';
+    const percentage = (vibrationLevel / MAX_VIBRATION) * 100;
+    vibrationFillEl.style.width = percentage + '%';
 
     // Cores baseadas no nível
-    if (vibrationLevel < 30) {
-      vibrationFillEl.style.background = 'linear-gradient(0deg, #d2a679 0%, #b58b57 100%)';
-      vibrationFillEl.style.boxShadow = 'none';
-    } else if (vibrationLevel < 70) {
-      vibrationFillEl.style.background = 'linear-gradient(0deg, #d2a679 0%, #c99a6e 100%)';
-      vibrationFillEl.style.boxShadow = '0 0 20px rgba(210, 166, 121, 0.5)';
+    if (vibrationLevel >= SHAI_HULUD_THRESHOLD) {
+      vibrationFillEl.classList.add('danger');
     } else {
-      vibrationFillEl.style.background = 'linear-gradient(0deg, #d2a679 0%, #ff8c00 100%)';
-      vibrationFillEl.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.8)';
+      vibrationFillEl.classList.remove('danger');
     }
 
     updateAudioByVibration();
@@ -1050,11 +880,15 @@
   // ============================================================
   // FIM DE JOGO
   // ============================================================
-
   function endGame() {
     gameOver = true;
     clearInterval(gameLoop);
     gameLoop = null;
+
+    if (shaiHuludInterval) {
+      clearInterval(shaiHuludInterval);
+      shaiHuludInterval = null;
+    }
 
     playDeathSound();
 
@@ -1079,25 +913,24 @@
   // ============================================================
   // RENDERIZAÇÃO
   // ============================================================
-
   function render() {
     requestAnimationFrame(render);
 
     const now = performance.now();
 
-    // Limpar canvas principal
-    ctx.fillStyle = '#1a1208';
+    // Limpar canvas
+    ctx.fillStyle = '#0a0604';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Grid sutil
-    ctx.strokeStyle = 'rgba(210, 166, 121, 0.05)';
+    // Grid minimalista
+    ctx.strokeStyle = 'rgba(210, 166, 121, 0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let i = 0; i < COLS; i++) {
+    for (let i = 0; i <= COLS; i++) {
       ctx.moveTo(i * CELL, 0);
       ctx.lineTo(i * CELL, canvas.height);
     }
-    for (let j = 0; j < ROWS; j++) {
+    for (let j = 0; j <= ROWS; j++) {
       ctx.moveTo(0, j * CELL);
       ctx.lineTo(canvas.width, j * CELL);
     }
@@ -1106,10 +939,10 @@
     // Renderizar rastros
     for (let i = trailSegments.length - 1; i >= 0; i--) {
       const trail = trailSegments[i];
-      ctx.fillStyle = `rgba(181, 139, 87, ${trail.life * 0.3})`;
-      ctx.fillRect(trail.x * CELL + CELL * 0.2, trail.y * CELL + CELL * 0.2,
-                   CELL * 0.6, CELL * 0.6);
-      trail.life -= 0.02;
+      ctx.fillStyle = `rgba(181, 139, 87, ${trail.life * 0.25})`;
+      ctx.fillRect(trail.x * CELL + CELL * 0.25, trail.y * CELL + CELL * 0.25,
+                   CELL * 0.5, CELL * 0.5);
+      trail.life -= 0.03;
       if (trail.life <= 0) trailSegments.splice(i, 1);
     }
 
@@ -1118,13 +951,11 @@
       spice.glow = Math.sin(now / 200) * 0.5 + 0.5;
       ctx.save();
       ctx.shadowColor = '#d2a679';
-      ctx.shadowBlur = 10 + spice.glow * 10;
+      ctx.shadowBlur = 8 + spice.glow * 8;
       ctx.fillStyle = '#d2a679';
-      ctx.globalAlpha = 0.8 + spice.glow * 0.2;
-      ctx.beginPath();
-      ctx.arc(spice.x * CELL + CELL / 2, spice.y * CELL + CELL / 2,
-              CELL * 0.3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.globalAlpha = 0.7 + spice.glow * 0.3;
+      ctx.fillRect(spice.x * CELL + CELL * 0.25, spice.y * CELL + CELL * 0.25,
+                   CELL * 0.5, CELL * 0.5);
       ctx.restore();
     }
 
@@ -1133,41 +964,45 @@
       slowDivePowerup.pulse = Math.sin(now / 150) * 0.5 + 0.5;
       ctx.save();
       ctx.shadowColor = '#66ddff';
-      ctx.shadowBlur = 15 + slowDivePowerup.pulse * 15;
+      ctx.shadowBlur = 10 + slowDivePowerup.pulse * 10;
       ctx.fillStyle = '#66ddff';
-      ctx.globalAlpha = 0.7 + slowDivePowerup.pulse * 0.3;
-      ctx.beginPath();
-      ctx.arc(slowDivePowerup.x * CELL + CELL / 2,
-              slowDivePowerup.y * CELL + CELL / 2,
-              CELL * 0.35, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.globalAlpha = 0.6 + slowDivePowerup.pulse * 0.4;
+      ctx.fillRect(slowDivePowerup.x * CELL + CELL * 0.2,
+                   slowDivePowerup.y * CELL + CELL * 0.2,
+                   CELL * 0.6, CELL * 0.6);
       ctx.restore();
     }
 
-    // Renderizar Alpha Worm
-    if (alphaWormActive && alphaWormPosition) {
+    // Renderizar Shai-Hulud (Alpha Worm)
+    if (shaiHuludActive && shaiHuludPosition) {
       ctx.save();
-      ctx.shadowColor = '#8b4513';
-      ctx.shadowBlur = 30;
+      ctx.shadowColor = '#ff4500';
+      ctx.shadowBlur = 25;
       ctx.fillStyle = '#8b4513';
-      ctx.globalAlpha = 0.9;
+      ctx.globalAlpha = 0.85;
       ctx.beginPath();
-      ctx.arc(alphaWormPosition.x * CELL + CELL / 2,
-              alphaWormPosition.y * CELL + CELL / 2,
-              CELL * 0.8, 0, Math.PI * 2);
+      ctx.arc(shaiHuludPosition.x * CELL + CELL / 2,
+              shaiHuludPosition.y * CELL + CELL / 2,
+              CELL * 0.9, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
     // Renderizar serpente
     serpent.forEach((seg, i) => {
-      const alpha = isSlowDiveActive ? 0.3 : 1.0;
-      const size = i === 0 ? 0.7 : 0.6;
+      const alpha = isSlowDiveActive ? 0.4 : 1.0;
+      const size = i === 0 ? 0.75 : 0.65;
 
       ctx.save();
-      ctx.shadowColor = isSlowDiveActive ? '#66ddff' : '#d2a679';
-      ctx.shadowBlur = isSlowDiveActive ? 20 : 10;
-      ctx.fillStyle = isSlowDiveActive ? '#66ddff' : '#d2a679';
+      if (isSlowDiveActive) {
+        ctx.shadowColor = '#66ddff';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#66ddff';
+      } else {
+        ctx.shadowColor = '#d2a679';
+        ctx.shadowBlur = i === 0 ? 10 : 5;
+        ctx.fillStyle = '#d2a679';
+      }
       ctx.globalAlpha = alpha;
       ctx.fillRect(seg.x * CELL + CELL * (1 - size) / 2,
                    seg.y * CELL + CELL * (1 - size) / 2,
@@ -1181,69 +1016,21 @@
       ctx.save();
       ctx.globalAlpha = p.life;
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x, p.y, 3, 3);
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
       ctx.restore();
 
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.2; // gravidade
-      p.life -= 0.02;
+      p.vy += 0.15;
+      p.life -= 0.025;
 
       if (p.life <= 0) particles.splice(i, 1);
-    }
-
-    // Efeito de tempestade
-    if (sandstormActive) {
-      ctx.fillStyle = 'rgba(181, 139, 87, 0.2)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    // Renderizar partículas de areia no overlay
-    renderSandOverlay();
-  }
-
-  function renderSandOverlay() {
-    sandCanvas.width = window.innerWidth;
-    sandCanvas.height = window.innerHeight;
-
-    // Gerar partículas flutuantes
-    if (Math.random() < 0.3) {
-      sandParticles.push({
-        x: Math.random() * sandCanvas.width,
-        y: -10,
-        vy: Math.random() * 2 + 0.5,
-        vx: (Math.random() - 0.5) * 0.5,
-        size: Math.random() * 2 + 1,
-        life: 1
-      });
-    }
-
-    sandCtx.clearRect(0, 0, sandCanvas.width, sandCanvas.height);
-
-    for (let i = sandParticles.length - 1; i >= 0; i--) {
-      const p = sandParticles[i];
-      sandCtx.save();
-      sandCtx.globalAlpha = p.life * 0.4;
-      sandCtx.fillStyle = '#d2a679';
-      sandCtx.beginPath();
-      sandCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      sandCtx.fill();
-      sandCtx.restore();
-
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= 0.005;
-
-      if (p.y > sandCanvas.height || p.life <= 0) {
-        sandParticles.splice(i, 1);
-      }
     }
   }
 
   // ============================================================
   // CONTROLES
   // ============================================================
-
   function setDirection(newDir) {
     // Prevenir reversão 180 graus
     if (direction.x + newDir.x === 0 && direction.y + newDir.y === 0) return;
@@ -1281,8 +1068,8 @@
 
   // Custom cursor
   document.addEventListener('mousemove', (e) => {
-    cursorEl.style.left = e.clientX + 'px';
-    cursorEl.style.top = e.clientY + 'px';
+    cursorEl.style.left = e.clientX - 4 + 'px';
+    cursorEl.style.top = e.clientY - 4 + 'px';
   });
 
   // Botões
@@ -1292,7 +1079,6 @@
   // ============================================================
   // INICIAR
   // ============================================================
-
   introScreen.classList.add('show');
   requestAnimationFrame(render);
 })();
